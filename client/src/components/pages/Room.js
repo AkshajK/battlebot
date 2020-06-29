@@ -281,7 +281,7 @@ class Room extends Component {
       <List>
         {this.state.leaderboard.map((entry) => {
           return <ListItem>
-            <ListItemText primary={entry.userName} secondary={entry.rating} />
+            <ListItemText primary={entry.userName} secondary={entry.rating + ((this.state.activeUsers.filter((user)=>{return user.userId === entry.userId}).length === 0) ? "" : " (Online)")} />
             <Button onClick={() => {
                post("api/runMatch", {roomName: this.state.roomName, player1: this.props.userId, player2: entry.userId})
               }

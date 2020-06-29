@@ -2,7 +2,7 @@ let io;
 
 const userToSocketMap = {}; // maps user ID to socket object
 const socketToUserMap = {}; // maps socket ID to user object
-
+const Room = require("./models/room");
 const getSocketFromUserID = (userid) => userToSocketMap[userid];
 const getUserFromSocketID = (socketid) => socketToUserMap[socketid];
 const getSocketFromSocketID = (socketid) => io.sockets.connected[socketid];
@@ -33,7 +33,28 @@ module.exports = {
       console.log(`socket has connected ${socket.id}`);
       socket.on("disconnect", (reason) => {
         const user = getUserFromSocketID(socket.id);
-        removeUser(user, socket);
+        if(user) {
+          let userId = user._id
+          removeUser(user, socket);
+          setTimeout(() => {
+            if(getSocketFromUserID(userId)) return;
+            Room.find({}).then((rooms) => {
+              rooms.forEach((room) => {
+              let activeUsers = room.activeUsers
+              let len = activeUsers.length 
+              activeUsers = activeUsers.filter((userr) => {return userId !== userr.userId})
+              if(len != activeUsers.length) {
+              room.activeUsers = activeUsers 
+              room.save().then(() => {
+                io.emit("message", {roomName: room.name, message: user.userName + " left the room", type: "userJoinsOrLeaves"})
+                io.emit("leaveRoom", {roomName: room.name, user: {userId: userId, userName: user.userName}})
+               
+              })
+              }
+            })
+            })
+          }, 1000)
+        }
       });
     });
   },
