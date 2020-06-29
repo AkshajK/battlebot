@@ -86,7 +86,8 @@ class Room extends Component {
         bots: res.bots,
         matches: res.matches,
         exampleBot: res.exampleBot,
-        botCode: res.exampleBot.code
+        botCode: res.exampleBot.code,
+        botId: res.leaderboard.filter((entry) => {return entry.userId === this.props.userId})[0].botId
 
       });
     });
@@ -214,8 +215,13 @@ class Room extends Component {
         newBots.push(bot.bot)
         this.setState({
           bots: newBots,
-          botId: bot.bot.botId
+         
         });
+        post("api/setBot", {roomName: this.state.roomName, botId: bot.bot.botId}).then(() => {
+          this.setState({
+            botId: bot.bot.botId,
+          })
+         })
         closePopup();
       });
     };
