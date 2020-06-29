@@ -314,7 +314,7 @@ class Room extends Component {
    </>
   let bots = <>
   <List>
-        {this.state.bots.reverse().map((bot) => {
+        {this.state.bots.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).map((bot) => {
           return <ListItem>
             <ListItemText primary={bot.name} secondary={this.state.botId === bot.botId ? "Selected" : ""}  />
             <Button onClick={() => {

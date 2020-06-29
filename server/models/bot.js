@@ -8,7 +8,11 @@ const BotSchema = new mongoose.Schema({
     userName: String
   },
   code: String,
-  gameName: String
+  gameName: String,
+  timestamp: {
+    type: Date,
+    default: Date.now
+  }
 });
 
 
