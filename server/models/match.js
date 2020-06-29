@@ -16,7 +16,7 @@ const MatchSchema = new mongoose.Schema({
   },
   score: {
     type: Array,
-    default: [0, 0]
+    default: [0.0, 0.0]
   },
   transcript: {
     type: [String],

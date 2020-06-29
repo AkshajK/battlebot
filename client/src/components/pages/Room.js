@@ -297,7 +297,7 @@ class Room extends Component {
     */
    let matches = <>
     <List>
-        {this.state.matches.map((match) => {
+        {this.state.matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).map((match) => {
           return <ListItem>
             <ListItemText primary={match.player1.userName + " vs " + match.player2.userName} secondary={match.inProgress ? "In Progress" : (match.score[0] + " - " + match.score[1])} />
             <Button onClick={() => {
@@ -314,7 +314,7 @@ class Room extends Component {
    </>
   let bots = <>
   <List>
-        {this.state.bots.map((bot) => {
+        {this.state.bots.reverse().map((bot) => {
           return <ListItem>
             <ListItemText primary={bot.name} secondary={this.state.botId === bot.botId ? "Selected" : ""}  />
             <Button onClick={() => {

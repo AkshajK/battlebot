@@ -241,7 +241,7 @@ router.post("/runMatch", auth.ensureLoggedIn, (req, res) => {
                 //
                 Match.findOne({_id: match._id}).then((matchFinished) => {
                   matchFinished.inProgress = false;
-                  matchFinished.score = [parseInt(lastLine[0]), parseInt(lastLine[2])];
+                  matchFinished.score = [parseFloat(lastLine[0]), parseFloat(lastLine[2])];
                   matchFinished.transcript = results.split("[!BOT1]").join(player1.userName).split("[!BOT2]").join(player2.userName).split("\n")
                   matchFinished.save().then(() => {
                     socket.getIo().emit("newMatch", {roomName: req.body.roomName, match: matchFinished})
