@@ -19,6 +19,8 @@ const validator = require("./validator");
 validator.checkSetup();
 
 //import libraries needed for the webserver to work!
+require("dotenv").config()
+
 const http = require("http");
 const express = require("express"); // backend framework for our node server.
 const session = require("express-session"); // library that stores info about each connected user
@@ -30,7 +32,7 @@ const auth = require("./auth");
 
 // socket stuff
 const socket = require("./server-socket");
-require("dotenv").config()
+
 // Server configuration below
 // TODO change connection URL after setting up your team database
 const mongoConnectionURL = process.env.ATLAS_SRV;
