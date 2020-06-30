@@ -111,7 +111,7 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
        Match.find({roomName: room.name}, (err, matches) => {
 
        
-       Bot.find({"user.userId": req.user._id, gameName: room.gameName}, (err, bots) => {
+       Bot.find({"user.userId": req.user._id, gameName: room.gameName, deleted: false}, (err, bots) => {
 
         Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
           Game.findOne({name: room.gameName}).then((game) => {
@@ -204,6 +204,27 @@ router.post("/uploadBot", auth.ensureLoggedIn, (req, res) => {
   
 });
 
+router.post("/deleteBot", auth.ensureLoggedIn, (req, res) => {
+  Bot.findOne({botId: req.body.botId}).then((bot) => {
+    bot.deleted = true 
+    bot.save()
+  })
+   
+  
+  
+});
+
+router.post("/testBot", auth.ensureLoggedIn, (req, res) => {
+  Game.findOne({name: req.body.gameName}).then((game) => {
+                fs.writeFileSync(path.join(__dirname, "code", "bot1.py"), req.body.code)
+                fs.writeFileSync(path.join(__dirname, "code", "bot2.py"), req.body.exampleCode)
+                fs.writeFileSync(path.join(__dirname, "code", "getWinner.py"), game.getWinner)
+                const proc = execSync("python3 " + path.join(__dirname, "code", "runMatch.py"));
+                const results = proc.toString();
+                let transcript = results.split("[!BOT1]").join(req.user.userName).split("[!BOT2]").join("ExampleBot").split("\n")
+                res.send({transcript: transcript})
+  })
+})
 
 // input: {player1: User, player2: User, roomName: String}
 // output: {}
@@ -245,6 +266,23 @@ router.post("/runMatch", auth.ensureLoggedIn, (req, res) => {
                   matchFinished.transcript = results.split("[!BOT1]").join(player1.userName).split("[!BOT2]").join(player2.userName).split("\n")
                   matchFinished.save().then(() => {
                     socket.getIo().emit("newMatch", {roomName: req.body.roomName, match: matchFinished})
+                    let scoreDiff = matchFinished.score[0] - matchFinished.score[1]
+                    let p1score = (scoreDiff > 0 ? 1 : (scoreDiff < 0 ? 0 : 0.5))
+                    let p2score = 1 - p1score
+                    let newRating1 = 30 * (p1score - 1.0/(1.0 + Math.pow(10, (player2.rating - player1.rating)/400.0)))
+                    let newRating2 = 30 * (p2score - 1.0/(1.0 + Math.pow(10, (player1.rating - player2.rating)/400.0)))
+                    let leaderboard = room.leaderboard
+                    player1.rating += newRating1
+                    player2.rating += newRating2
+                    leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})
+                    leaderboard.push(player1)
+                    leaderboard.push(player2)
+                    room.leaderboard = leaderboard
+                    room.save().then(() => {
+                      socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard})
+                    })
+
+                    
                   })
 
                 })

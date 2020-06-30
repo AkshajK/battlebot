@@ -4,6 +4,7 @@ import Chat from "../modules/Chat.js";
 import Select from "@material-ui/core/Select";
 import Grid from "@material-ui/core/Grid";
 import Box from "@material-ui/core/Box";
+import Divider from "@material-ui/core/Divider";
 import TextField from "@material-ui/core/TextField";
 import MenuItem from "@material-ui/core/MenuItem";
 import Dialog from "@material-ui/core/Dialog";
@@ -63,7 +64,10 @@ class Room extends Component {
       botTitle: "",
       bots: [],
       matches: [],
-      exampleBot: {name: "", code: ""}
+      exampleBot: {name: "", code: ""},
+      testMatch: {transcript: []},
+      codeViewBot: {botId: ""},
+      lastChallenge: new Date()
 
     };
   }
@@ -97,6 +101,16 @@ class Room extends Component {
         
         this.setState({
           activeUsers: data.activeUsers,
+          leaderboard: data.leaderboard
+        });
+      }
+    });
+
+    socket.on("leaderboard", (data) => {
+      if (data.roomName === this.state.roomName) {
+        
+        this.setState({
+         
           leaderboard: data.leaderboard
         });
       }
@@ -151,18 +165,39 @@ class Room extends Component {
       </DialogContent>
     </Dialog>
   </>)
-
+ let codePopupClose = () => {this.setState({dialogCodeOpen: false, dialogCodeText: ""})}
   let codePopup = (
-    <><Dialog open={this.state.dialogCodeOpen} onClose={() => {this.setState({dialogCodeOpen: false, dialogCodeText: ""})}}>
+    <><Dialog open={this.state.dialogCodeOpen} onClose={codePopupClose}>
     <DialogTitle>{this.state.dialogTitle}</DialogTitle>
     <DialogContent>
+     
     <AceEditor
                     mode="python"
                     readOnly
                     theme="github"
                     value={this.state.dialogCodeText}
                 />
+                 
     </DialogContent>
+    <DialogActions>
+    <Button
+              onClick={() => {
+                let bots = this.state.bots
+                bots = bots.filter((bot) => {return bot.botId !== this.state.codeViewBot.botId})
+                this.setState({bots: bots})
+                codePopupClose()
+                post("api/deleteBot", {botId: this.state.codeViewBot.botId})
+              }}
+             disabled={this.state.codeViewBot.botId === this.state.botId}
+              color="secondary"
+            >
+              Delete Bot
+            </Button>
+    <Button onClick={codePopupClose} color="primary">
+              Close
+            </Button>
+            
+    </DialogActions>
   </Dialog>
 </>)
     let newRoomPopup = (
@@ -183,6 +218,7 @@ class Room extends Component {
             <Select value={this.state.newGameName} onChange={(event)=>{this.setState({newGameName: event.target.value})}}>
               {this.state.gameOptions.map((option) => {return <MenuItem value={option}>{option}</MenuItem>})}
             </Select>
+           
           </DialogContent>
           <DialogActions>
             <Button onClick={closeNewRoomPopup} color="primary">
@@ -202,6 +238,21 @@ class Room extends Component {
 
     let closePopup = () => {
       this.setState({ addNewBotModal: false, botTitle: "", botCode: this.state.exampleBot.code });
+    };
+    let handleTest = () => {
+      if((new Date()).getTime() - ((new Date(this.state.lastChallenge)).getTime()) >= 500) {
+        this.setState({lastChallenge: new Date()})
+      post("api/testBot", {
+       
+          name: this.state.botTitle,
+          code: this.state.botCode,
+          exampleCode: this.state.exampleBot.code,
+          gameName: this.state.gameName
+       
+      }).then((match) => {
+        this.setState({testMatch: match})
+      });
+      }
     };
     let handleSubmit = () => {
       post("api/uploadBot", {
@@ -242,23 +293,41 @@ class Room extends Component {
                 this.setState({ botTitle: event.target.value });
               }}
             />
+            <Grid container direction="row">
+      
             <AceEditor
                     mode="python"
                     value={this.state.botCode}
                     theme="github"
+                   
+                    width="700px"
                     onChange={(event) => {
               
                       this.setState({ botCode: event });
                     }}
-                    width="800px"
+                    
                    
-                />
-          
+                /> 
+          <Divider orientation="vertical" flexItem />
+          <List style={{height: "500px", overflow: "auto"}}>
+         { this.state.testMatch.transcript.map((text) => {
+            return <ListItem><ListItemText primary={text} /></ListItem>
+          })}
+        </List>
+      
+        
+         </Grid>
            
           </DialogContent>
           <DialogActions>
             <Button onClick={closePopup} color="primary">
               Cancel
+            </Button>
+            <Button
+              onClick={handleTest}
+              color="primary"
+            >
+              Test
             </Button>
             <Button
               onClick={handleSubmit}
@@ -279,11 +348,14 @@ class Room extends Component {
     */
     let leaderboard = <>
       <List>
-        {this.state.leaderboard.map((entry) => {
+        {this.state.leaderboard.sort((a,b) => {return b.rating - a.rating}).map((entry) => {
           return <ListItem>
-            <ListItemText primary={entry.userName} secondary={entry.rating + ((this.state.activeUsers.filter((user)=>{return user.userId === entry.userId}).length === 0) ? "" : " (Online)")} />
+            <ListItemText primary={entry.userName} secondary={Math.floor(entry.rating) + ((this.state.activeUsers.filter((user)=>{return user.userId === entry.userId}).length === 0) ? "" : " (Online)")} />
             <Button onClick={() => {
-               post("api/runMatch", {roomName: this.state.roomName, player1: this.props.userId, player2: entry.userId})
+              if((new Date()).getTime() - ((new Date(this.state.lastChallenge)).getTime()) >= 500) {
+                    this.setState({lastChallenge: new Date()})
+                    post("api/runMatch", {roomName: this.state.roomName, player1: this.props.userId, player2: entry.userId})
+                }
               }
             } disabled={entry.userId === this.props.userId}>Challenge</Button>
           </ListItem>
@@ -326,7 +398,7 @@ class Room extends Component {
               }
             }>Use This Bot</Button>
             <Button onClick={() => {
-              this.setState({dialogCodeOpen: true, dialogCodeText: bot.code, dialogTitle: "View Code of " + bot.name})
+              this.setState({dialogCodeOpen: true, dialogCodeText: bot.code, dialogTitle: "View Code of " + bot.name, codeViewBot: bot})
             }}>View Code</Button>
           </ListItem>
         })}
@@ -337,23 +409,27 @@ class Room extends Component {
      {/* <button onClick = {()=>{console.log(this.state)}}>log state</button>*/}
         <AppBar position="static">
   <Toolbar>
-    <IconButton edge="start"  color="inherit" aria-label="menu">
-      <MenuIcon />
-    </IconButton>
-    <Typography variant="h6">
-      BattleBot
-    </Typography>
+ 
+    
     
       
         <Button
           onClick={() => {
-            this.setState({ addNewBotModal: true });
+            this.setState({ addNewBotModal: true, testMatch: {transcript: []} });
           }}
           color="inherit"
         >
           {"Add New Bot"}
         </Button>
-        <Button
+        
+              <Button color="inherit" onClick={() => {
+              this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})
+            }}>View Rules</Button>
+
+    <Typography variant="h6" style={{display: "flex", width: "800px", justifyContent: "center"}}>
+      BattleBot: {this.state.gameName}
+    </Typography>
+    <Button
                 onClick={() => {
                   this.setState({ createNewRoomModal: true });
                 }}
@@ -361,9 +437,6 @@ class Room extends Component {
               >
                 {"Create New Room"}
               </Button>
-              <Button color="inherit" onClick={() => {
-              this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})
-            }}>View Rules</Button>
     <GoogleLogout
             clientId={GOOGLE_CLIENT_ID}
             buttonText="Logout"

@@ -3,8 +3,7 @@
 # e.g., on round 3, my_past_submissions might be 
 # [[5, 10, 5, 10, 5, 10, 5, 10, 5, 35], [100, 0, 0, 0, 0, 0, 0, 0, 0, 0]] 
 def getSubmission(my_past_submissions, their_past_submissions):
-    # Submit one array every odd round, and another every even round
-    if len(my_past_submissions) % 2 == 0:
-        return [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
-    else:
-        return [0, 0, 0, 0, 16, 16, 16, 16, 16, 20]
+    # Submit their last submission:
+    if len(my_past_submissions) == 0:
+        return [16, 16, 16, 16, 16, 20, 0, 0, 0, 0]
+    return their_past_submissions[-1]

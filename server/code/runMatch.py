@@ -1,3 +1,4 @@
+import signal 
 bot1Works = True 
 bot2Works = True
 try:
@@ -15,17 +16,25 @@ def runMatch():
   bot2score = 0
   results1 = []
   results2 = []
+  def handler(signum, frame):
+      raise Exception("end of time")
   for rounds in range(NUM_ROUNDS):
       val1 = -1
       try:
           if(bot1Works):
+              signal.signal(signal.SIGALRM, handler)
+              signal.alarm(1)
               val1 = bot1code(results1, results2)
+              signal.alarm(0)
       except:
           pass
       val2 = -1
       try:
           if(bot2Works):
+              signal.signal(signal.SIGALRM, handler)
+              signal.alarm(1)
               val2 = bot2code(results2, results1)
+              signal.alarm(0)
       except:
           pass
       result = getWinner(val1, val2)
