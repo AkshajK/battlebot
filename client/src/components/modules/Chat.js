@@ -56,7 +56,7 @@ class Chat extends React.Component {
           
             <List>
               {this.getLastFew(100, this.props.messages.filter((message) => {return (message.roomName === this.props.roomName)})).map((message) => {
-                let text = <><div style={{display: "inline"}}>{"["+(addZero(new Date(message.timestamp).getHours())) + ":" + (addZero(new Date(message.timestamp).getMinutes())) + "] "}</div><div style={{color: "#678efd", display: "inline", fontWeight: "900"}}>{(message.type === "message" ? message.sender.userName : "")}</div><div style={{display: "inline"}}>{(message.type === "message" ? ": " : "") + crop(message.message)}</div></>
+                let text = <><div style={{display: "inline"}}>{"["+(addZero(new Date(message.timestamp).getHours())) + ":" + (addZero(new Date(message.timestamp).getMinutes())) + "] "}</div><div style={{color: "#6c57f5", display: "inline", fontWeight: "900"}}>{(message.type === "message" ? message.sender.userName : "")}</div><div style={{display: "inline"}}>{(message.type === "message" ? ": " : "") + crop(message.message)}</div></>
               
 
                 return (

@@ -13,6 +13,7 @@ import MenuItem from "@material-ui/core/MenuItem";
 import StarIcon from '@material-ui/icons/Star';
 import IconButton from '@material-ui/core/IconButton';
 import Dialog from "@material-ui/core/Dialog";
+
 import List from "@material-ui/core/List";
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
@@ -364,7 +365,7 @@ class Room extends Component {
 
     */
     let leaderboard = <>
-      <List style={{maxHeight: "700px", overflow: auto}}>
+      <List style={{maxHeight: "700px", overflow: "auto"}}>
         {this.state.leaderboard.sort((a,b) => {return b.rating - a.rating}).map((entry) => {
           return <ListItem>
             <ListItemText primary={entry.userName} secondary={Math.floor(entry.rating)} />
