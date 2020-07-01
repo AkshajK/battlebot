@@ -364,7 +364,7 @@ class Room extends Component {
 
     */
     let leaderboard = <>
-      <List>
+      <List style={{maxHeight: "700px", overflow: auto}}>
         {this.state.leaderboard.sort((a,b) => {return b.rating - a.rating}).map((entry) => {
           return <ListItem>
             <ListItemText primary={entry.userName} secondary={Math.floor(entry.rating)} />
