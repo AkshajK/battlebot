@@ -1,4 +1,5 @@
 import signal 
+import copy
 bot1Works = True 
 bot2Works = True
 try:
@@ -25,7 +26,7 @@ def runMatch():
           if(bot1Works):
               signal.signal(signal.SIGALRM, handler)
               signal.setitimer(signal.ITIMER_REAL, time_limit)
-              val1 = bot1code(results1, results2, bot1score)
+              val1 = bot1code(copy.deepcopy(results1), copy.deepcopy(results2), bot1score+0)
               signal.alarm(0)
       except:
           pass
@@ -34,7 +35,7 @@ def runMatch():
           if(bot2Works):
               signal.signal(signal.SIGALRM, handler)
               signal.setitimer(signal.ITIMER_REAL, time_limit)
-              val2 = bot2code(results2, results1, bot2score)
+              val2 = bot2code(copy.deepcopy(results2), copy.deepcopy(results1), bot2score+0)
               signal.alarm(0)
       except:
           pass

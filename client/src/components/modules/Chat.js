@@ -52,7 +52,7 @@ class Chat extends React.Component {
     }
     return (
       <Box height="300px" >
-      <Box style={{backgroundColor: "#FFFFFF", height: "calc(100% - 30px)", width: "100%", overflow: "scroll", color: "black", display: "flex", flexDirection: "column-reverse", marginBottom: "auto"}}>
+      <Box style={{height: "calc(100% - 30px)", width: "100%", overflow: "scroll", color: "black", display: "flex", flexDirection: "column-reverse", marginBottom: "auto"}}>
           
             <List>
               {this.getLastFew(100, this.props.messages.filter((message) => {return (message.roomName === this.props.roomName)})).map((message) => {
