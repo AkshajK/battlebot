@@ -81,12 +81,41 @@ router.post("/createGame", auth.ensureLoggedIn, (req, res) => {
         getWinner: req.body.code
       })
       game.save().then(() => {
-        console.log("done")
-        res.send({})
+
+        let bot = new Bot({
+          name: "ExampleBot",
+          botId: "EXAMPLE",
+          gameName: game.name,
+          code: req.body.codeExample,
+          user: {
+            userId: "Example",
+            userName: "Example"
+          }
+        })
+        bot.save().then(() => {
+          console.log("done")
+          res.send({})
+        })
       })
 
 });
 
+router.post("/getBlotto", auth.ensureLoggedIn, (req, res) => {
+
+  Game.findOne({name: "Blotto"}).then((game) => {
+    Bot.findOne({gameName: game.name, botId: "EXAMPLE"}).then((bot) => {
+      res.send({
+        gameName: game.name,
+        rules: game.rules,
+        code: game.getWinner,
+        codeExample: bot.code
+      })
+    })
+    
+  })
+        
+
+});
 
 // input: {roomName: String}
 // output: {leaderboard: leaderboard, activeUsers: activeUsers, gameName: String, bots: [Bot], matches: [Match]
@@ -274,13 +303,28 @@ router.post("/runMatch", auth.ensureLoggedIn, (req, res) => {
                     let leaderboard = room.leaderboard
                     player1.rating += newRating1
                     player2.rating += newRating2
-                    leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})
+                    let record1 = bot1.record 
+                    record1[0] += p1score
+                    record1[1] += 1-p1score
+                    let record2 = bot2.record 
+                    record2[0] += 1-p1score 
+                    record2[1] += p1score
+                    bot1.record = record1 
+                    bot2.record = record2
+                    bot1.markModified("record")
+                    bot2.markModified("record")
+                    bot1.save().then(() => {
+                      bot2.save().then(() => {
+                        leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})
                     leaderboard.push(player1)
                     leaderboard.push(player2)
                     room.leaderboard = leaderboard
                     room.save().then(() => {
-                      socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard})
+                      socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard, bots: [{botId: bot1.botId, record: bot1.record}, {botId: bot2.botId, record: bot2.record}]})
                     })
+                      })
+                    })
+                    
 
                     
                   })

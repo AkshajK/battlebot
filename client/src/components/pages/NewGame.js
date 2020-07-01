@@ -13,6 +13,12 @@ import Toolbar from "@material-ui/core/Toolbar";
 import Typography from "@material-ui/core/Typography";
 import Button from "@material-ui/core/Button";
 import IconButton from "@material-ui/core/IconButton";
+import AceEditor from 'react-ace';
+import brace from 'brace';
+import 'brace/mode/python';
+
+// Import a Theme (okadia, github, xcode etc)
+import 'brace/theme/github';
 import MenuIcon from "@material-ui/icons/Menu";
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
@@ -36,6 +42,7 @@ class NewGame extends Component {
       gameName: "",
       rules: "",
       code: "",
+      codeExample: "",
       password: ""
     };
   }
@@ -43,6 +50,15 @@ class NewGame extends Component {
   componentDidMount() {
     // remember -- api calls go here!
     // console.log(this.props)
+    post("api/getBlotto").then((res) => {
+      this.setState({
+        gameName: res.gameName,
+        rules: res.rules,
+        code: res.code,
+        codeExample: res.codeExample,
+
+      });
+    });
   }
 
   render() {
@@ -53,11 +69,12 @@ class NewGame extends Component {
         gameName: this.state.gameName,
         code: this.state.code,
         rules: this.state.rules,
-        password: this.state.password
+        password: this.state.password,
+        codeExample: this.state.codeExample
       })
     };
 
-    
+
     let newGame = (
       <>
         <TextField
@@ -75,23 +92,32 @@ class NewGame extends Component {
           label="Rules"
           type="text"
           fullWidth
+          multiline
           value={this.state.rules}
           onChange={(event) => {
             this.setState({ rules: event.target.value });
           }}
         />
-        <TextField
-          margin="dense"
-          label="Code"
-          type="text"
-          fullWidth
-          multiline 
-          value={this.state.code}
-          onChange={(event) => {
-            this.setState({ code: event.target.value });
+        <Grid container  direction="row" >
+        <AceEditor
+                    mode="python"
+                    readOnly
+                    theme="github"
+                    value={this.state.code}
+          onChange={(value) => {
+            this.setState({ code: value });
           }}
-        />
-
+                />
+        <AceEditor
+                    mode="python"
+                    readOnly
+                    theme="github"
+                    value={this.state.codeExample}
+          onChange={(value) => {
+            this.setState({ codeExample: value });
+          }}
+                />
+          </Grid>
         <TextField
           margin="dense"
           label="Password"
@@ -107,6 +133,7 @@ class NewGame extends Component {
         <Button
           onClick={() => {handleSubmit()}}
           color="primary"
+          disabled={this.state.gameName === "Blotto"}
         >
           Submit
         </Button>

@@ -10,10 +10,11 @@ try:
 except:
     bot2Works = False
 from getWinner import getWinner
-NUM_ROUNDS = 10
+NUM_ROUNDS = 100
+time_limit = 0.1
 def runMatch():
-  bot1score = 0
-  bot2score = 0
+  bot1score = 0.0
+  bot2score = 0.0
   results1 = []
   results2 = []
   def handler(signum, frame):
@@ -23,8 +24,8 @@ def runMatch():
       try:
           if(bot1Works):
               signal.signal(signal.SIGALRM, handler)
-              signal.alarm(1)
-              val1 = bot1code(results1, results2)
+              signal.setitimer(signal.ITIMER_REAL, time_limit)
+              val1 = bot1code(results1, results2, bot1score)
               signal.alarm(0)
       except:
           pass
@@ -32,8 +33,8 @@ def runMatch():
       try:
           if(bot2Works):
               signal.signal(signal.SIGALRM, handler)
-              signal.alarm(1)
-              val2 = bot2code(results2, results1)
+              signal.setitimer(signal.ITIMER_REAL, time_limit)
+              val2 = bot2code(results2, results1, bot2score)
               signal.alarm(0)
       except:
           pass

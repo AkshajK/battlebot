@@ -16,6 +16,10 @@ const BotSchema = new mongoose.Schema({
   deleted: {
     type: Boolean,
     default: false
+  },
+  record: {
+    type: Array,
+    default: [0, 0]
   }
 });
 

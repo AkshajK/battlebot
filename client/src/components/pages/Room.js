@@ -4,16 +4,23 @@ import Chat from "../modules/Chat.js";
 import Select from "@material-ui/core/Select";
 import Grid from "@material-ui/core/Grid";
 import Box from "@material-ui/core/Box";
+import Checkbox from '@material-ui/core/Checkbox';
+import ComputerIcon from '@material-ui/icons/Computer';
 import Divider from "@material-ui/core/Divider";
+import SportsBasketballIcon from '@material-ui/icons/SportsBasketball';
 import TextField from "@material-ui/core/TextField";
 import MenuItem from "@material-ui/core/MenuItem";
+import StarIcon from '@material-ui/icons/Star';
+import IconButton from '@material-ui/core/IconButton';
 import Dialog from "@material-ui/core/Dialog";
 import List from "@material-ui/core/List";
 import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
+import AdbIcon from '@material-ui/icons/Adb';
 import Typography from '@material-ui/core/Typography';
 import Button from '@material-ui/core/Button';
-import IconButton from '@material-ui/core/IconButton';
+import CodeIcon from '@material-ui/icons/Code';
+import SearchIcon from '@material-ui/icons/Search';
 import MenuIcon from '@material-ui/icons/Menu';
 import ListItem from "@material-ui/core/ListItem";
 import ListItemText from "@material-ui/core/ListItemText";
@@ -108,11 +115,21 @@ class Room extends Component {
 
     socket.on("leaderboard", (data) => {
       if (data.roomName === this.state.roomName) {
-        
+        let bots = this.state.bots 
+        let i=0 
+        for(i=0; i<bots.length; i++) {
+          if(bots[i].botId === data.bots[0].botId) 
+            bots[i].record = data.bots[0].record
+          if(bots[i].botId === data.bots[1].botId) 
+            bots[i].record = data.bots[1].record
+        }
+
         this.setState({
-         
+          bots: bots,
           leaderboard: data.leaderboard
         });
+
+
       }
     });
 
@@ -215,7 +232,7 @@ class Room extends Component {
                 this.setState({ newRoomName: event.target.value });
               }}
             />
-            <Select value={this.state.newGameName} onChange={(event)=>{this.setState({newGameName: event.target.value})}}>
+            <Select fullWidth value={this.state.newGameName} onChange={(event)=>{this.setState({newGameName: event.target.value})}}>
               {this.state.gameOptions.map((option) => {return <MenuItem value={option}>{option}</MenuItem>})}
             </Select>
            
@@ -350,14 +367,16 @@ class Room extends Component {
       <List>
         {this.state.leaderboard.sort((a,b) => {return b.rating - a.rating}).map((entry) => {
           return <ListItem>
-            <ListItemText primary={entry.userName} secondary={Math.floor(entry.rating) + ((this.state.activeUsers.filter((user)=>{return user.userId === entry.userId}).length === 0) ? "" : " (Online)")} />
-            <Button onClick={() => {
+            <ListItemText primary={entry.userName} secondary={Math.floor(entry.rating)} />
+            <IconButton onClick={() => {
               if((new Date()).getTime() - ((new Date(this.state.lastChallenge)).getTime()) >= 500) {
                     this.setState({lastChallenge: new Date()})
                     post("api/runMatch", {roomName: this.state.roomName, player1: this.props.userId, player2: entry.userId})
                 }
               }
-            } disabled={entry.userId === this.props.userId}>Challenge</Button>
+            } disabled={entry.userId === this.props.userId}
+            color={((this.state.activeUsers.filter((user)=>{return user.userId === entry.userId}).length === 0) ? "inherit" : "secondary")}
+            ><SportsBasketballIcon /></IconButton>
           </ListItem>
         })}
       </List>
@@ -372,14 +391,14 @@ class Room extends Component {
         {this.state.matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).map((match) => {
           return <ListItem>
             <ListItemText primary={match.player1.userName + " vs " + match.player2.userName} secondary={match.inProgress ? "In Progress" : (match.score[0] + " - " + match.score[1])} />
-            <Button onClick={() => {
+            <IconButton onClick={() => {
                this.setState({
                  dialogText: match.transcript,
                  open: true,
                  dialogTitle: "Match Transcript"
                })
               }
-            }>See Transcript</Button>
+            }><SearchIcon /></IconButton>
           </ListItem>
         })}
       </List>
@@ -387,19 +406,23 @@ class Room extends Component {
   let bots = <>
   <List>
         {this.state.bots.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).map((bot) => {
-          return <ListItem>
-            <ListItemText primary={bot.name} secondary={this.state.botId === bot.botId ? "Selected" : ""}  />
-            <Button onClick={() => {
-              post("api/setBot", {roomName: this.state.roomName, botId: bot.botId}).then(() => {
-               this.setState({
-                 botId: bot.botId,
-               })
-              })
+          let record = bot.record || [0, 0]
+          return <ListItem selected={bot.botId === this.state.botId}>
+            
+            <ListItemText primary={bot.name} secondary={record[0] + " - " + record[1]} />
+            <Checkbox checked={bot.botId === this.state.botId} onChange={(event) => {
+              if(event.target.checked) {
+                post("api/setBot", {roomName: this.state.roomName, botId: bot.botId}).then(() => {
+                this.setState({
+                  botId: bot.botId,
+                })
+                })
+               }
               }
-            }>Use This Bot</Button>
-            <Button onClick={() => {
+            }>Use This Bot</Checkbox>
+            <IconButton onClick={() => {
               this.setState({dialogCodeOpen: true, dialogCodeText: bot.code, dialogTitle: "View Code of " + bot.name, codeViewBot: bot})
-            }}>View Code</Button>
+            }}><CodeIcon /></IconButton>
           </ListItem>
         })}
       </List>
@@ -407,27 +430,18 @@ class Room extends Component {
     return (
       <>
      {/* <button onClick = {()=>{console.log(this.state)}}>log state</button>*/}
-        <AppBar position="static">
+        <AppBar position="static" style={{backgroundColor: "#6c57f5"}}>
   <Toolbar>
  
     
     
       
-        <Button
-          onClick={() => {
-            this.setState({ addNewBotModal: true, testMatch: {transcript: []} });
-          }}
-          color="inherit"
-        >
-          {"Add New Bot"}
-        </Button>
         
-              <Button color="inherit" onClick={() => {
-              this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})
-            }}>View Rules</Button>
+    
+              
 
-    <Typography variant="h6" style={{display: "flex", width: "800px", justifyContent: "center"}}>
-      BattleBot: {this.state.gameName}
+    <Typography variant="h6" style={{display: "flex", width: "80%", justifyContent: "center", alignItems: "center"}}>
+    <AdbIcon fontSize="large" style={{marginRight: "10px"}} /> {"BattleBots: "+this.state.gameName}
     </Typography>
     <Button
                 onClick={() => {
@@ -456,16 +470,27 @@ class Room extends Component {
         
         <Box width="300px">{leaderboard}</Box>  
           <Box width="calc(100% - 700px)">
-          <Box height="200px" style={{overflow: "auto"}}>
+          <Box style={{maxHeight: "200px", overflow: "auto"}}>
             {bots}
             </Box>
-            <Box height="500px" style={{overflow: "auto"}}>
+            <Button
+          onClick={() => {
+            this.setState({ addNewBotModal: true, testMatch: {transcript: []} });
+          }}
+          fullWidth
+        >
+          {"Add New Bot"}
+        </Button>
+            <Box height="450px" style={{overflow: "auto"}}>
             {matches}
             </Box>
           
           </Box>
           <Box width="400px">       
             <Chat messages={this.props.chat} roomName={this.state.roomName} />
+            <Button fullWidth style={{marginTop: "20px"}} onClick={() => {
+              this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})
+            }}>View {this.state.gameName} Rules</Button>
           </Box>
           {popup}
           {newRoomPopup}
