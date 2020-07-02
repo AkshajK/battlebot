@@ -211,7 +211,7 @@ class Room extends Component {
         post("api/runTournament", {roomName: this.state.roomName, name: this.state.newTournamentName, password: this.state.newTournamentPassword})
         
       }
-      closeNewRoomPopup()
+      closeNewTournamentPopup()
     };
     let matchPopup = (<><Dialog open={this.state.open} onClose={() => {this.setState({open: false, dialogText: []})}}>
       <DialogTitle>{this.state.dialogTitle}</DialogTitle>
