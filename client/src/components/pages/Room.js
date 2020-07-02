@@ -71,6 +71,7 @@ class Room extends Component {
       dialogCodeText: "",
       newRoomName: "",
       newTournamentName: "",
+      newTournamentPassword: "",
       botCode: "",
       botTitle: "",
       bots: [],
@@ -194,11 +195,11 @@ class Room extends Component {
       this.setState({ createNewRoomModal: false });
     };
     let closeNewTournamentPopup = () => {
-      this.setState({ createNewTournamentModal: false });
+      this.setState({ createNewTournamentModal: false, newTournamentName: "", newTournamentPassword: ""});
     };
     let handleNewRoomSubmit = () => {
       console.log("Submitted")
-      post("api/createRoom", {roomName: this.state.newRoomName, gameName: this.state.newGameName}).then((res) => {
+      post("api/createRoom", {roomName: this.state.newRoomName, gameName: this.state.newGameName, password: this.state.newTournamentPassword}).then((res) => {
         console.log("createdRoom "+window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName)
         window.location.href = window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName
       });
@@ -245,6 +246,7 @@ class Room extends Component {
     </DialogContent>
     <DialogActions>
     <Button
+              disabled={this.state.tournamentInProgress}
               onClick={() => {
                 post("api/editBot", {botId: this.state.codeViewBot.botId, code: this.state.dialogCodeText}).then(() => {
                   let bots = this.state.bots
@@ -271,7 +273,7 @@ class Room extends Component {
                 codePopupClose()
                 post("api/deleteBot", {botId: this.state.codeViewBot.botId})
               }}
-             disabled={this.state.codeViewBot.botId === this.state.botId}
+             disabled={this.state.tournamentInProgress || (this.state.codeViewBot.botId === this.state.botId)}
               color="secondary"
             >
               Delete Bot
@@ -298,6 +300,16 @@ class Room extends Component {
                 this.setState({ newTournamentName: event.target.value });
               }}
             />
+            <TextField
+              margin="dense"
+              label="Password"
+              type="password"
+              fullWidth
+              value={this.state.newTournamentPassword}
+              onChange={(event) => {
+                this.setState({ newTournamentPassword: event.target.value });
+              }}
+            />
            
            
           </DialogContent>
@@ -307,7 +319,7 @@ class Room extends Component {
             </Button>
             <Button
               onClick={handleNewTournamentSubmit}
-              disabled={this.state.newTournamentName.length < 1}
+              disabled={this.state.tournamentInProgress || (this.state.newTournamentName.length < 1)}
               color="primary"
             >
               Submit
@@ -342,7 +354,7 @@ class Room extends Component {
             </Button>
             <Button
               onClick={handleNewRoomSubmit}
-              disabled={!/^\w+$/.test(this.state.newRoomName)}
+              disabled={this.state.tournamentInProgress || (!/^\w+$/.test(this.state.newRoomName))}
               color="primary"
             >
               Submit
@@ -440,6 +452,7 @@ class Room extends Component {
               Cancel
             </Button>
             <Button
+              disabled={this.state.tournamentInProgress}
               onClick={handleTest}
               color="primary"
             >
@@ -448,7 +461,7 @@ class Room extends Component {
             <Button
               onClick={handleSubmit}
               disabled={
-                this.state.botTitle.length < 2
+                this.state.tournamentInProgress || (this.state.botTitle.length < 2)
               }
               color="primary"
             >
@@ -509,7 +522,7 @@ class Room extends Component {
           return <ListItem selected={bot.botId === this.state.botId}>
             
             <ListItemText primary={bot.name} secondary={record[0] + " - " + record[1]} />
-            <Checkbox checked={bot.botId === this.state.botId} onChange={(event) => {
+            <Checkbox disabled={this.state.tournamentInProgress} checked={bot.botId === this.state.botId} onChange={(event) => {
               if(event.target.checked) {
                 post("api/setBot", {roomName: this.state.roomName, botId: bot.botId}).then(() => {
                 this.setState({
@@ -573,8 +586,10 @@ class Room extends Component {
             {bots}
             </Box>
             <Button
+            disabled={this.state.tournamentInProgress}
           onClick={() => {
             this.setState({ addNewBotModal: true, testMatch: {transcript: []} });
+
           }}
           fullWidth
         >
@@ -590,7 +605,7 @@ class Room extends Component {
             <Button fullWidth style={{marginTop: "20px"}} onClick={() => {
               this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})
             }}>View {this.state.gameName} Rules</Button>
-            {this.props.userId.toString() === "5ef923837ca4c93a04268744" ? <Button
+            {<Button
                 onClick={() => {
                   this.setState({createNewTournamentModal: true})
                 }}
@@ -599,7 +614,7 @@ class Room extends Component {
                 fullWidth
               >
                 {"Run Tournament"}
-              </Button> : <></>}
+              </Button>}
               {this.state.tournamentInProgress ? <Alert severity="info">{this.state.tournamentName + " in Progress"}</Alert>  : <></>}
            
           </Box>

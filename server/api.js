@@ -401,7 +401,7 @@ let runMatches = (list, current, roomName, tournamentName) => {
 let counter = 0
 
 router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
-
+  if(req.body.password !== "admin") return
   let rounds = 1
 
   Room.findOne({name: req.body.roomName}).then((room) => {
