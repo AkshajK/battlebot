@@ -18,7 +18,7 @@ const BotSchema = new mongoose.Schema({
     default: false
   },
   record: {
-    type: Array,
+    type: [Number],
     default: [0, 0]
   }
 });

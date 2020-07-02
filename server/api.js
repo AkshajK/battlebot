@@ -6,7 +6,7 @@
 | This file defines the routes for your server.
 |
 */
-
+var Promise = require('promise');
 const express = require("express");
 //const bodyParser = require('body-parser');
 //const cors = require('cors');
@@ -144,7 +144,7 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
 
         Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
           Game.findOne({name: room.gameName}).then((game) => {
-          res.send({leaderboard: leaderboard, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules})
+          res.send({leaderboard: leaderboard, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
           socket.getIo().emit("joinRoom", {roomName: req.body.roomName, user: userObject(req.user), leaderboard: leaderboard, activeUsers: activeUsers})
           socket.getIo().emit("message", {roomName: req.body.roomName, message: req.user.userName + " entered the room", type: "userJoinsOrLeaves"})
       
@@ -232,7 +232,17 @@ router.post("/uploadBot", auth.ensureLoggedIn, (req, res) => {
   
   
 });
-
+router.post("/editBot", auth.ensureLoggedIn, (req, res) => {
+  Bot.findOne({botId: req.body.botId}).then((bot) => {
+    bot.code = req.body.code
+    bot.save().then(() => {
+      res.send({})
+    })
+  })
+   
+  
+  
+});
 router.post("/deleteBot", auth.ensureLoggedIn, (req, res) => {
   Bot.findOne({botId: req.body.botId}).then((bot) => {
     bot.deleted = true 
@@ -255,107 +265,178 @@ router.post("/testBot", auth.ensureLoggedIn, (req, res) => {
   })
 })
 
-// input: {player1: User, player2: User, roomName: String}
+// input: {player1: Id, player2: Id, roomName: String}
 // output: {}
-router.post("/runMatch", auth.ensureLoggedIn, (req, res) => {
-  Room.findOne({name: req.body.roomName}).then((room) => {
-    let player1 = room.leaderboard.filter((user) => {return user.userId === req.body.player1})[0]
-    let player2 = room.leaderboard.filter((user) => {return user.userId === req.body.player2})[0]
-    
-    Bot.findOne({botId: player1.botId}).then((bot1) => {
-        Bot.findOne({botId: player2.botId}).then((bot2) => {
-   
-          Game.findOne({name: room.gameName}).then((game) => {
-            try {
-              let match = new Match({
-                roomName: req.body.roomName,
-                player1: player1,
-                player2: player2,
-              })
-              match.save().then(() => {
-                socket.getIo().emit("newMatch", {roomName: req.body.roomName, match: match})
-                fs.writeFileSync(path.join(__dirname, "code", "bot1.py"), bot1.code)
-                fs.writeFileSync(path.join(__dirname, "code", "bot2.py"), bot2.code)
-                fs.writeFileSync(path.join(__dirname, "code", "getWinner.py"), game.getWinner)
-                const proc = execSync("python3 " + path.join(__dirname, "code", "runMatch.py"));
-                const results = proc.toString();
-                const lines = results.split("\n")
-                console.log(lines)
-                console.log("----")
-                const lastLine = lines[lines.length - 2].split(" ")
-                console.log(lastLine)
-                // form:
-                // blahblahblah
-                // Final Result (Name1 vs Name2)
-                // 500 - 300
-                //
-                Match.findOne({_id: match._id}).then((matchFinished) => {
-                  matchFinished.inProgress = false;
-                  matchFinished.score = [parseFloat(lastLine[0]), parseFloat(lastLine[2])];
-                  matchFinished.transcript = results.split("[!BOT1]").join(player1.userName).split("[!BOT2]").join(player2.userName).split("\n")
-                  matchFinished.save().then(() => {
-                    socket.getIo().emit("newMatch", {roomName: req.body.roomName, match: matchFinished})
-                    let scoreDiff = matchFinished.score[0] - matchFinished.score[1]
-                    let p1score = (scoreDiff > 0 ? 1 : (scoreDiff < 0 ? 0 : 0.5))
-                    let p2score = 1 - p1score
-                    let newRating1 = 30 * (p1score - 1.0/(1.0 + Math.pow(10, (player2.rating - player1.rating)/400.0)))
-                    let newRating2 = 30 * (p2score - 1.0/(1.0 + Math.pow(10, (player1.rating - player2.rating)/400.0)))
-                    let leaderboard = room.leaderboard
-                    player1.rating += newRating1
-                    player2.rating += newRating2
-                    let record1 = bot1.record 
-                    record1[0] += p1score
-                    record1[1] += 1-p1score
-                    let record2 = bot2.record 
-                    record2[0] += 1-p1score 
-                    record2[1] += p1score
-                    bot1.record = record1 
-                    bot2.record = record2
-                    bot1.markModified("record")
-                    bot2.markModified("record")
-                    bot1.save().then(() => {
-                      bot2.save().then(() => {
-                        leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})
-                    leaderboard.push(player1)
-                    leaderboard.push(player2)
-                    room.leaderboard = leaderboard
-                    room.save().then(() => {
-                      socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard, bots: [{botId: bot1.botId, record: bot1.record}, {botId: bot2.botId, record: bot2.record}]})
-                    })
-                      })
-                    })
-                    
 
-                    
-                  })
+runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
+  return new Promise((resolve, reject) => {
+    
+
+  
+  Room.findOne({name: roomName}).then((room) => {
+    let player1 = room.leaderboard.filter((user) => {return user.userId === player1id})[0]
+    let player2 = room.leaderboard.filter((user) => {return user.userId === player2id})[0]
+    
+    
+    
+  Bot.findOne({botId: player1.botId}).then((bot1) => {
+    Bot.findOne({botId: player2.botId}).then((bot2) => {
+
+      Game.findOne({name: room.gameName}).then((game) => {
+        try {
+          let match = new Match({
+            roomName: room.name,
+            player1: player1,
+            player2: player2,
+            tournamentInProgress: inTournament,
+            tournamentName: tournamentName
+          })
+          match.save().then(() => {
+            socket.getIo().emit("newMatch", {roomName: room.name, match: match})
+            fs.writeFileSync(path.join(__dirname, "code", "bot1.py"), bot1.code)
+            fs.writeFileSync(path.join(__dirname, "code", "bot2.py"), bot2.code)
+            fs.writeFileSync(path.join(__dirname, "code", "getWinner.py"), game.getWinner)
+            const proc = execSync("python3 " + path.join(__dirname, "code", "runMatch.py"));
+            const results = proc.toString();
+            const lines = results.split("\n")
+            console.log(lines)
+            console.log("----")
+            const lastLine = lines[lines.length - 2].split(" ")
+            console.log(lastLine)
+            // form:
+            // blahblahblah
+            // Final Result (Name1 vs Name2)
+            // 500 - 300
+            //
+            Match.findOne({_id: match._id}).then((matchFinished) => {
+              matchFinished.inProgress = false;
+              matchFinished.score = [parseFloat(lastLine[0]), parseFloat(lastLine[2])];
+              matchFinished.transcript = results.split("[!BOT1]").join(player1.userName).split("[!BOT2]").join(player2.userName).split("\n")
+              matchFinished.save().then(() => {
+                socket.getIo().emit("newMatch", {roomName: room.name, match: matchFinished})
+                let scoreDiff = matchFinished.score[0] - matchFinished.score[1]
+                let p1score = (scoreDiff > 0 ? 1 : (scoreDiff < 0 ? 0 : 0.5))
+                let p2score = 1 - p1score
+                let newRating1 = 30 * (p1score - 1.0/(1.0 + Math.pow(10, (player2.rating - player1.rating)/400.0)))
+                let newRating2 = 30 * (p2score - 1.0/(1.0 + Math.pow(10, (player1.rating - player2.rating)/400.0)))
+                let leaderboard = room.leaderboard
+                player1.rating += newRating1
+                player2.rating += newRating2
+                let record1 = bot1.record 
+                record1[0] += p1score
+                record1[1] += 1-p1score
+                let record2 = bot2.record 
+                record2[0] += 1-p1score 
+                record2[1] += p1score
+                bot1.record = record1 
+                bot2.record = record2
+          
+                bot1.save().then(() => {
+                  bot2.save().then(() => {
+                    leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})
+                leaderboard.push(player1)
+                leaderboard.push(player2)
+                room.leaderboard = leaderboard
+                if(inTournament) {
+                  counter -= 1
+                  console.log(counter)
+                  if(counter === 0) {
+                    room.tournamentInProgress = false
+                    room.tournamentName = "Free Play"
+                    socket.getIo().emit("tournamentDone", {roomName: room.name, name: tournamentName})
+                  }
+                  }
+                room.save().then(() => {
+                  socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard, bots: [{botId: bot1.botId, record: bot1.record}, {botId: bot2.botId, record: bot2.record}]})
+                  resolve()
 
                 })
-              
+                  })
+                })
+                
+
+                
               })
-              
 
-
-            }
-            catch (error) {
-              console.log("FAILED")
-              console.log(error)
-            }
-
-
-
+            })
+          
           })
           
-        })
-        
+
+
+        }
+        catch (error) {
+          console.log("FAILED")
+          console.log(error)
+        }
+
+
 
       })
+      
     })
+    
+
+    })
+  })
+})
+}
+router.post("/runMatch", auth.ensureLoggedIn, (req, res) => {
+  runMatch(player1, player2, req.body.roomName, false, "Free Play")
+  
     
 
    
   
   
 });
+
+
+let runMatches = (list, current, roomName, tournamentName) => {
+  if(current > list.length) return 
+  runMatch(list[current][0], list[current][1], roomName, true, tournamentName).then(() => {
+    runMatches(list, current+1, roomName, tournamentName)
+  })
+}
+let counter = 0
+
+router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
+
+  let rounds = 1
+
+  Room.findOne({name: req.body.roomName}).then((room) => {
+    room.tournamentInProgress = true 
+    room.tournamentName = req.body.name
+    room.save().then(() => {
+      socket.getIo().emit("tournamentStart", {roomName: room.name, name: req.body.name})
+      let i=0
+      let j=0
+      counter = room.leaderboard.length*(room.leaderboard.length - 1) /2 * rounds
+      let curlist = []
+      for(i=0; i<room.leaderboard.length; i++) {
+        for(j=i+1; j<room.leaderboard.length; j++) {
+          let player1 = room.leaderboard[i].userId
+          let player2 = room.leaderboard[j].userId
+          let k=0
+          for(k=0; k<rounds; k++) {
+            curlist.push([player1, player2])
+            
+          }
+        }
+      }
+      runMatches(curlist, 0, room.name, req.body.name)
+      
+      
+      })
+    })
+    
+    
+
+   
+  
+  
+});
+
 
 
 

@@ -26,6 +26,14 @@ const MatchSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
 
+  },
+  inTournament: {
+    type: Boolean,
+    default: false
+  },
+  tournamentName: {
+    type: String,
+    default: "Free Play"
   }
 
 

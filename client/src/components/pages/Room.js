@@ -3,6 +3,7 @@ import GoogleLogin, { GoogleLogout } from "react-google-login";
 import Chat from "../modules/Chat.js";
 import Select from "@material-ui/core/Select";
 import Grid from "@material-ui/core/Grid";
+import { Alert, AlertTitle } from '@material-ui/lab';
 import Box from "@material-ui/core/Box";
 import Checkbox from '@material-ui/core/Checkbox';
 import ComputerIcon from '@material-ui/icons/Computer';
@@ -61,6 +62,7 @@ class Room extends Component {
       commandText: "",
       addNewBotModal: false,
       createNewRoomModal: false,
+      createNewTournamentModal: false,
       open: false,
       botId: "",
       dialogText: [],
@@ -68,6 +70,7 @@ class Room extends Component {
       dialogCodeOpen: false,
       dialogCodeText: "",
       newRoomName: "",
+      newTournamentName: "",
       botCode: "",
       botTitle: "",
       bots: [],
@@ -99,7 +102,9 @@ class Room extends Component {
         matches: res.matches,
         exampleBot: res.exampleBot,
         botCode: res.exampleBot.code,
-        botId: res.leaderboard.filter((entry) => {return entry.userId === this.props.userId})[0].botId
+        botId: res.leaderboard.filter((entry) => {return entry.userId === this.props.userId})[0].botId,
+        tournamentInProgress: res.tournamentInProgress,
+        tournamentName: res.tournamentName
 
       });
     });
@@ -134,6 +139,29 @@ class Room extends Component {
       }
     });
 
+    socket.on("tournamentStart", (data) => {
+      if (data.roomName === this.state.roomName) {
+        this.setState({
+          tournamentInProgress: true,
+          tournamentName: data.name
+        })
+
+
+      }
+    });
+
+    socket.on("tournamentDone", (data) => {
+      if (data.roomName === this.state.roomName) {
+        this.setState({
+          tournamentInProgress: false,
+          tournamentName: "Free Play"
+        })
+
+
+      }
+    });
+
+
     socket.on("leaveRoom", (data) => {
       if (data.roomName === this.state.roomName && data.user.userId !== this.props.userId) {
         let newActiveUsers = this.state.activeUsers.filter((user) => {return user.userId !== data.user.userId});
@@ -165,12 +193,24 @@ class Room extends Component {
     let closeNewRoomPopup = () => {
       this.setState({ createNewRoomModal: false });
     };
+    let closeNewTournamentPopup = () => {
+      this.setState({ createNewTournamentModal: false });
+    };
     let handleNewRoomSubmit = () => {
       console.log("Submitted")
       post("api/createRoom", {roomName: this.state.newRoomName, gameName: this.state.newGameName}).then((res) => {
         console.log("createdRoom "+window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName)
         window.location.href = window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName
       });
+    };
+    let handleNewTournamentSubmit = () => {
+      console.log("Submitted")
+      if((new Date()).getTime() - ((new Date(this.state.lastChallenge)).getTime()) >= 500) {
+          this.setState({lastChallenge: new Date()})
+        post("api/runTournament", {roomName: this.state.roomName, name: this.state.newTournamentName})
+        
+      }
+      closeNewRoomPopup()
     };
     let matchPopup = (<><Dialog open={this.state.open} onClose={() => {this.setState({open: false, dialogText: []})}}>
       <DialogTitle>{this.state.dialogTitle}</DialogTitle>
@@ -191,13 +231,38 @@ class Room extends Component {
      
     <AceEditor
                     mode="python"
-                    readOnly
+                    
                     theme="github"
                     value={this.state.dialogCodeText}
+                  
+                    width="700px"
+                    onChange={(event) => {
+              
+                      this.setState({ dialogCodeText: event });
+                    }}
                 />
                  
     </DialogContent>
     <DialogActions>
+    <Button
+              onClick={() => {
+                post("api/editBot", {botId: this.state.codeViewBot.botId, code: this.state.dialogCodeText}).then(() => {
+                  let bots = this.state.bots
+                  bots = bots.filter((bot) => {return bot.botId !== this.state.codeViewBot.botId})
+                  let currentBot = this.state.codeViewBot 
+                  currentBot.code = this.state.dialogCodeText 
+                  bots.push(currentBot)
+                  this.setState({bots: bots})
+                  codePopupClose()
+                })
+                
+                
+              }}
+             
+              
+            >
+              Save Bot
+            </Button>
     <Button
               onClick={() => {
                 let bots = this.state.bots
@@ -218,6 +283,39 @@ class Room extends Component {
     </DialogActions>
   </Dialog>
 </>)
+    let newTournamentPopup = (
+      <>
+        <Dialog open={this.state.createNewTournamentModal} onClose={closeNewTournamentPopup}>
+          <DialogTitle>New Tournament</DialogTitle>
+          <DialogContent>
+            <TextField
+              margin="dense"
+              label="Tournament Name"
+              type="text"
+              fullWidth
+              value={this.state.newTournamentName}
+              onChange={(event) => {
+                this.setState({ newTournamentName: event.target.value });
+              }}
+            />
+           
+           
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={closeNewTournamentPopup} color="primary">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleNewTournamentSubmit}
+              disabled={this.state.newTournamentName.length < 1}
+              color="primary"
+            >
+              Submit
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    );
     let newRoomPopup = (
       <>
         <Dialog open={this.state.createNewRoomModal} onClose={closeNewRoomPopup}>
@@ -375,7 +473,7 @@ class Room extends Component {
                     post("api/runMatch", {roomName: this.state.roomName, player1: this.props.userId, player2: entry.userId})
                 }
               }
-            } disabled={entry.userId === this.props.userId}
+            } disabled={this.state.tournamentInProgress || (entry.userId === this.props.userId)}
             color={((this.state.activeUsers.filter((user)=>{return user.userId === entry.userId}).length === 0) ? "inherit" : "secondary")}
             ><SportsBasketballIcon /></IconButton>
           </ListItem>
@@ -492,9 +590,22 @@ class Room extends Component {
             <Button fullWidth style={{marginTop: "20px"}} onClick={() => {
               this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})
             }}>View {this.state.gameName} Rules</Button>
+            {this.props.userId.toString() === "5ef923837ca4c93a04268744" ? <Button
+                onClick={() => {
+                  this.setState({createNewTournamentModal: true})
+                }}
+                color="inherit"
+                disabled={this.state.tournamentInProgress}
+                fullWidth
+              >
+                {"Run Tournament"}
+              </Button> : <></>}
+              {this.state.tournamentInProgress ? <Alert severity="info">{this.state.tournamentName + " in Progress"}</Alert>  : <></>}
+           
           </Box>
           {popup}
           {newRoomPopup}
+          {newTournamentPopup}
           {matchPopup}
           {codePopup}
         </Grid>
