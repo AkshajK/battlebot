@@ -199,7 +199,7 @@ class Room extends Component {
     };
     let handleNewRoomSubmit = () => {
       console.log("Submitted")
-      post("api/createRoom", {roomName: this.state.newRoomName, gameName: this.state.newGameName, password: this.state.newTournamentPassword}).then((res) => {
+      post("api/createRoom", {roomName: this.state.newRoomName, gameName: this.state.newGameName}).then((res) => {
         console.log("createdRoom "+window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName)
         window.location.href = window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName
       });
@@ -208,7 +208,7 @@ class Room extends Component {
       console.log("Submitted")
       if((new Date()).getTime() - ((new Date(this.state.lastChallenge)).getTime()) >= 500) {
           this.setState({lastChallenge: new Date()})
-        post("api/runTournament", {roomName: this.state.roomName, name: this.state.newTournamentName})
+        post("api/runTournament", {roomName: this.state.roomName, name: this.state.newTournamentName, password: this.state.newTournamentPassword})
         
       }
       closeNewRoomPopup()
