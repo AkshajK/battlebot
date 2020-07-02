@@ -382,7 +382,7 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
 })
 }
 router.post("/runMatch", auth.ensureLoggedIn, (req, res) => {
-  runMatch(player1, player2, req.body.roomName, false, "Free Play")
+  runMatch(req.body.player1, req.body.player2, req.body.roomName, false, "Free Play")
   
     
 
