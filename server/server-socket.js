@@ -45,12 +45,27 @@ module.exports = {
               activeUsers = activeUsers.filter((userr) => {return userId !== userr.userId})
               if(len != activeUsers.length) {
               room.activeUsers = activeUsers 
+              let leaderboard = room.leaderboard
+              let ourGuy = leaderboard.filter((userr) => {return userId === userr.userId})
+              let leaderboardChanged = false
+              if(ourGuy.length > 0) {
+                if(ourGuy[0].botId === "EXAMPLE") {
+               console.log("new leaderboard user")
+               leaderboard = leaderboard.filter((userr) => {return userId !== userr.userId})
+               room.leaderboard = leaderboard
+               leaderboardChanged = true 
+                }
+              } 
+          
+          
               room.save().then(() => {
                 io.emit("message", {roomName: room.name, message: user.userName + " left the room", type: "userJoinsOrLeaves"})
-                io.emit("leaveRoom", {roomName: room.name, user: {userId: userId, userName: user.userName}})
+                io.emit("leaveRoom", {roomName: room.name, user: {userId: userId, userName: user.userName}, left: leaderboardChanged})
                
               })
               }
+              
+              
             })
             })
           }, 1000)

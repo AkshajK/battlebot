@@ -56,6 +56,13 @@ let userObject = (user) => {
 // | write your API methods below!|
 // |------------------------------|
 
+
+router.get("/tournamentMatches", auth.ensureLoggedIn, (req, res) => {
+  Match.find({roomName: req.query.roomName, tournamentName: req.query.tournamentName}, (err, matches) => {
+      res.send(matches)
+  })
+})
+
 // input: {roomName: String, gameName: String}
 // output: {}
 router.post("/createRoom", auth.ensureLoggedIn, (req, res) => {
@@ -118,6 +125,9 @@ router.post("/getBlotto", auth.ensureLoggedIn, (req, res) => {
 
 });
 
+
+
+
 // input: {roomName: String}
 // output: {leaderboard: leaderboard, activeUsers: activeUsers, gameName: String, bots: [Bot], matches: [Match]
 // emits socket "joinRoom", {roomName: String, user: User}
@@ -139,9 +149,9 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
     room.save().then(() => {
     
        // need the res.send
-       Match.find({roomName: room.name}, (err, matches) => {
+       Match.find({roomName: room.name, tournamentName: "Free Play"}, (err, matches) => {
         
-       
+       matches = matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).filter((match, place) => {return (place < 100)})
        Bot.find({"user.userId": req.user._id, gameName: room.gameName, deleted: false}, (err, bots) => {
         Tournament.find({roomName: room.name}, (err, tournaments) => {
         Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
@@ -196,9 +206,23 @@ router.post("/leaveRoom", auth.ensureLoggedIn, (req, res) => {
     let activeUsers = room.activeUsers
     activeUsers = activeUsers.filter((user) => {return req.user._id !== user.userId})
     room.activeUsers = activeUsers 
+
+    let leaderboard = room.leaderboard
+    let ourGuy = leaderboard.filter((user) => {return req.user._id === user.userId})
+    let leaderboardChanged = false
+    if(ourGuy.length > 0) {
+      if(ourGuy[0].botId === "EXAMPLE") {
+     console.log("new leaderboard user")
+     leaderboard = leaderboard.filter((user) => {return req.user._id !== user.userId})
+     room.leaderboard = leaderboard
+     leaderboardChanged = true 
+      }
+    } 
+
+
     room.save().then(() => {
       socket.getIo().emit("message", {roomName: req.body.roomName, message: req.user.userName + " left the room", type: "userJoinsOrLeaves"})
-      socket.getIo().emit("leaveRoom", {roomName: req.body.roomName, user: userObject(req.user)})
+      socket.getIo().emit("leaveRoom", {roomName: req.body.roomName, user: userObject(req.user), left: leaderboardChanged})
        res.send({})
     })
   })
@@ -285,6 +309,7 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
     
     
     
+    
   Bot.findOne({botId: player1.botId}).then((bot1) => {
     Bot.findOne({botId: player2.botId}).then((bot2) => {
 
@@ -328,17 +353,24 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                 let leaderboard = room.leaderboard
                 player1.rating += newRating1
                 player2.rating += newRating2
-                let record1 = bot1.record 
-                record1[0] += p1score
-                record1[1] += 1-p1score
-                let record2 = bot2.record 
-                record2[0] += 1-p1score 
-                record2[1] += p1score
-                bot1.record = record1 
-                bot2.record = record2
+                
+                
+
+                Bot.findOne({botId: bot1.botId}).then((bot1c) => {
+                  Bot.findOne({botId: bot2.botId}).then((bot2c) => {
+                    let record1 = bot1c.record 
+                    record1[0] += p1score
+                    record1[1] += 1-p1score
+                    let change1 = [p1score, 1-p1score]
+                    let record2 = bot2c.record 
+                    record2[0] += 1-p1score 
+                    record2[1] += p1score
+                    let change2 = [1-p1score, p1score]
+                bot1c.record = record1
+                bot2c.record = record2
           
-                bot1.save().then(() => {
-                  bot2.save().then(() => {
+                bot1c.save().then(() => {
+                  bot2c.save().then(() => {
                     leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})
                 leaderboard.push(player1)
                 leaderboard.push(player2)
@@ -397,7 +429,7 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                   }
                   }
                 room2.save().then(() => {
-                  socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard, bots: [{botId: bot1.botId, record: bot1.record}, {botId: bot2.botId, record: bot2.record}]})
+                  socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard, bots: [{botId: bot1.botId, record: change1}, {botId: bot2.botId, record: change2}]})
                   bothDone += 1
                   if(bothDone === 2) {
                     resolve()
@@ -407,6 +439,8 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                   })
                 })
               })
+            })
+          })
                 
 
                 
@@ -470,15 +504,18 @@ router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
       socket.getIo().emit("tournamentStart", {roomName: room.name, name: req.body.name})
       let i=0
       let j=0
-      counter[room.name] = room.leaderboard.length*(room.leaderboard.length - 1) /2 * rounds
+      
       records[room.name] = {}
       names[room.name] = {}
       roundsObj[room.name] = rounds
       let curlist = []
       for(i=0; i<room.leaderboard.length; i++) {
+        if(room.leaderboard[i].botId === "EXAMPLE") continue
         for(j=i+1; j<room.leaderboard.length; j++) {
+          if(room.leaderboard[j].botId === "EXAMPLE") continue
           let player1 = room.leaderboard[i].userId
           let player2 = room.leaderboard[j].userId
+          
           let k=0
           for(k=0; k<rounds; k++) {
             curlist.push([player1, player2])
@@ -486,6 +523,8 @@ router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
           }
         }
       }
+      if(curlist.length === 0) return 
+      counter[room.name] = curlist.length 
       runMatches(curlist, 0, room.name, req.body.name)
       
       

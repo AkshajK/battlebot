@@ -86,7 +86,8 @@ class Room extends Component {
       codeViewBot: {botId: ""},
       lastChallenge: new Date(),
       tournaments: [],
-      selectedTournament: ""
+      selectedTournament: "",
+      tournamentMatches : []
 
     };
   }
@@ -135,10 +136,14 @@ class Room extends Component {
         let bots = this.state.bots 
         let i=0 
         for(i=0; i<bots.length; i++) {
-          if(bots[i].botId === data.bots[0].botId) 
-            bots[i].record = data.bots[0].record
-          if(bots[i].botId === data.bots[1].botId) 
-            bots[i].record = data.bots[1].record
+          if(bots[i].botId === data.bots[0].botId) {
+            bots[i].record[0] += data.bots[0].record[0]
+            bots[i].record[1] += data.bots[0].record[1]
+          }
+          if(bots[i].botId === data.bots[1].botId) {
+            bots[i].record[0] += data.bots[1].record[0]
+            bots[i].record[1] += data.bots[1].record[1]
+          }
         }
 
         this.setState({
@@ -179,9 +184,18 @@ class Room extends Component {
     socket.on("leaveRoom", (data) => {
       if (data.roomName === this.state.roomName && data.user.userId !== this.props.userId) {
         let newActiveUsers = this.state.activeUsers.filter((user) => {return user.userId !== data.user.userId});
+        
         this.setState({
           activeUsers: newActiveUsers,
+         
         });
+        if(data.left) {
+          let newLeaderboard = this.state.leaderboard.filter((user) => {return user.userId !== data.user.userId});
+          this.setState({
+            leaderboard: newLeaderboard,
+           
+          });
+        }
       }
     });
 
@@ -488,7 +502,7 @@ class Room extends Component {
     Leaderboard
 
     */
-   let length = (this.state.selectedTournament !== "") ? (this.state.selectedTournament.records.length * (this.state.selectedTournament.rounds)) : 0
+   let length = (this.state.selectedTournament !== "") ? ((this.state.selectedTournament.records.length - 1) * (this.state.selectedTournament.rounds)) : 0
     let leaderboard = <>
       <List style={{maxHeight: "700px", overflow: "auto"}}>
         {this.state.selectedTournament === "" ? (
@@ -522,12 +536,9 @@ class Room extends Component {
 
     */
    let matches = <>
+   {(this.state.selectedTournament !== "") && (this.state.tournamentMatches.length === 0) ? <Box width="100%" style={{display: "flex", marginTop: "50px", justifyContent: "center", alignItems: "center"}}><CircularProgress /></Box> : <></>}
     <List>
-        {this.state.matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).filter((match)=> {
-              
-              if(this.state.selectedTournament === "") return true 
-              return (match.tournamentName === this.state.selectedTournament.name)
-          }).filter((match, place) => {return (place < 100)}).map((match) => {
+        {((this.state.selectedTournament === "") ? this.state.matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}) : this.state.tournamentMatches).map((match) => {
           return <ListItem>
             <ListItemText primary={match.player1.userName + " vs " + match.player2.userName} secondary={match.inProgress ? "In Progress" : (match.score[0] + " - " + match.score[1])} />
             <IconButton onClick={() => {
@@ -553,11 +564,14 @@ class Room extends Component {
           
             <IconButton onClick={() => {
               this.setState({selectedTournament: tournament})
+              get("api/tournamentMatches", {roomName: this.state.roomName, tournamentName: tournament.name}).then((matches) => {
+                this.setState({tournamentMatches: matches})
+              })
             }}><EqualizerIcon /></IconButton>
           </ListItem>
         })}
       </List>
-      {(this.state.selectedTournament==="" ? <></> : <Button fullWidth onClick={() => {this.setState({selectedTournament: ""})}}> Return to Free Play</Button>)}
+      
    </>
   let bots = <>
   <List>
@@ -614,6 +628,7 @@ class Room extends Component {
               >
                 {"Create New Room"}
               </Button>
+             
     <GoogleLogout
             clientId={GOOGLE_CLIENT_ID}
             buttonText="Logout"
@@ -658,7 +673,11 @@ class Room extends Component {
             
             <Box height="300px" style={{overflow: "auto"}}>
             {tournamentBlob}
+           
             </Box>
+            {(this.state.selectedTournament==="" ? <></> : <Button fullWidth onClick={() => {this.setState({selectedTournament: ""})
+     
+    }}> Return to Free Play</Button>)}
             {this.state.isAdmin ? <Button
                 onClick={() => {
                   this.setState({createNewTournamentModal: true})
