@@ -459,11 +459,13 @@ let roundsObj = {}
 router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
   res.send({})
   if(!req.user.admin) return
+
   let rounds = req.body.rounds
 
   Room.findOne({name: req.body.roomName}).then((room) => {
     room.tournamentInProgress = true 
     room.tournamentName = req.body.name
+    if(room.leaderboard.length <= 1) return;
     room.save().then(() => {
       socket.getIo().emit("tournamentStart", {roomName: room.name, name: req.body.name})
       let i=0
