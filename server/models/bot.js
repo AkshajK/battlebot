@@ -18,8 +18,8 @@ const BotSchema = new mongoose.Schema({
     default: false
   },
   record: {
-    type: [Number],
-    default: [0, 0]
+    type: Array,
+    default: [0.0, 0.0]
   }
 });
 

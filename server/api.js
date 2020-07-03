@@ -368,7 +368,8 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                     let change2 = [1-p1score, p1score]
                 bot1c.record = record1
                 bot2c.record = record2
-          
+                bot1c.markModified("record")
+                bot2c.markModified("record")
                 bot1c.save().then(() => {
                   bot2c.save().then(() => {
                     leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})

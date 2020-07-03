@@ -617,6 +617,7 @@ class Room extends Component {
             <Button
                 onClick={() => {this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})}}
                 color="inherit"
+                variant={this.state.bots.length === 0 ? "outlined" : "text"}
               >
                 {"Rules"}
               </Button>
@@ -658,9 +659,12 @@ class Room extends Component {
             this.setState({ addNewBotModal: true, testMatch: {transcript: []} });
 
           }}
+          style={{backgroundColor: (this.state.bots.length === 0 ? "#6c57f5" : undefined)}}
+          color={this.state.bots.length === 0 ? "primary" : "default"}
+          variant={this.state.bots.length === 0 ? "contained" : "text"}
           fullWidth
         >
-          {"Add New Bot"}
+          {this.state.bots.length === 0 ? "Add Your First Bot" : "Add New Bot"}
         </Button>
             <Box height="370px" style={{overflow: "auto"}}>
             {matches}

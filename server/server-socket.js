@@ -48,7 +48,7 @@ module.exports = {
               let leaderboard = room.leaderboard
               let ourGuy = leaderboard.filter((userr) => {return userId === userr.userId})
               let leaderboardChanged = false
-              if(ourGuy.length > 0) {
+              if((ourGuy.length > 0) &&(!getSocketFromUserID(userId))) {
                 if(ourGuy[0].botId === "EXAMPLE") {
                console.log("new leaderboard user")
                leaderboard = leaderboard.filter((userr) => {return userId !== userr.userId})
