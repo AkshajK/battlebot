@@ -1,14 +1,32 @@
 import signal 
 import copy
+from RestrictedPython import compile_restricted
+from RestrictedPython import safe_globals
 bot1Works = True 
 bot2Works = True
+bot1code = -1
+bot2code = -1
 try:
-    from bot1 import getSubmission as bot1code
-except:
+    f = open("bot1.py", "r")
+    bot1 = f.read()
+    loc={}
+    byte_code = compile_restricted(bot1, '<inline>', 'exec')
+    exec(byte_code, safe_globals, loc)
+    
+    bot1code = loc['getSubmission']
+except Exception as e:
+    print("[!BOT1] Error Message: ", e)
     bot1Works = False
 try: 
-    from bot2 import getSubmission as bot2code
-except:
+    f = open("bot2.py", "r")
+    bot2 = f.read()
+    loc={}
+    byte_code = compile_restricted(bot2, '<inline>', 'exec')
+    exec(byte_code, safe_globals, loc)
+    
+    bot2code = loc['getSubmission']
+except Exception as e:
+    print("[!BOT2] Error Message: ", e)
     bot2Works = False
 from getWinner import getWinner
 NUM_ROUNDS = 100
@@ -30,6 +48,7 @@ def runMatch():
               signal.alarm(0)
       except:
           pass
+          
       val2 = -1
       try:
           if(bot2Works):
@@ -39,6 +58,7 @@ def runMatch():
               signal.alarm(0)
       except:
           pass
+
       result = getWinner(val1, val2)
       
       
