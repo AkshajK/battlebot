@@ -377,7 +377,7 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                       roomName: room.name, 
                       records: recordsArray,
                       winner: winner,
-                      rounds: rounds[room.name]
+                      rounds: roundsObj[room.name]
                     })
 
                     room2.tournamentInProgress = false
@@ -455,7 +455,7 @@ let runMatches = (list, current, roomName, tournamentName) => {
 let counter = {}
 let records = {}
 let names = {}
-let rounds = {}
+let roundsObj = {}
 router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
   res.send({})
   if(!req.user.admin) return
@@ -471,7 +471,7 @@ router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
       counter[room.name] = room.leaderboard.length*(room.leaderboard.length - 1) /2 * rounds
       records[room.name] = {}
       names[room.name] = {}
-      rounds[room.name] = req.body.rounds
+      roundsObj[room.name] = rounds
       let curlist = []
       for(i=0; i<room.leaderboard.length; i++) {
         for(j=i+1; j<room.leaderboard.length; j++) {
