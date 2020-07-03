@@ -3,7 +3,9 @@ import GoogleLogin, { GoogleLogout } from "react-google-login";
 import Chat from "../modules/Chat.js";
 import Select from "@material-ui/core/Select";
 import Grid from "@material-ui/core/Grid";
+import CircularProgress from '@material-ui/core/CircularProgress';
 import { Alert, AlertTitle } from '@material-ui/lab';
+import EqualizerIcon from '@material-ui/icons/Equalizer';
 import Box from "@material-ui/core/Box";
 import Checkbox from '@material-ui/core/Checkbox';
 import ComputerIcon from '@material-ui/icons/Computer';
@@ -59,6 +61,7 @@ class Room extends Component {
       activeUsers: [],
       leaderboard: [],
       lastMessage: new Date(),
+      loaded: false,
       commandText: "",
       addNewBotModal: false,
       createNewRoomModal: false,
@@ -79,7 +82,9 @@ class Room extends Component {
       exampleBot: {name: "", code: ""},
       testMatch: {transcript: []},
       codeViewBot: {botId: ""},
-      lastChallenge: new Date()
+      lastChallenge: new Date(),
+      tournaments: [],
+      selectedTournament: ""
 
     };
   }
@@ -105,7 +110,9 @@ class Room extends Component {
         botCode: res.exampleBot.code,
         botId: res.leaderboard.filter((entry) => {return entry.userId === this.props.userId})[0].botId,
         tournamentInProgress: res.tournamentInProgress,
-        tournamentName: res.tournamentName
+        tournamentName: res.tournamentName,
+        loaded: true,
+        tournaments: res.tournaments
 
       });
     });
@@ -153,9 +160,12 @@ class Room extends Component {
 
     socket.on("tournamentDone", (data) => {
       if (data.roomName === this.state.roomName) {
+        let tournaments = this.state.tournaments 
+        tournaments.push(data.tournament)
         this.setState({
           tournamentInProgress: false,
-          tournamentName: "Free Play"
+          tournamentName: "Free Play",
+          tournaments: tournaments
         })
 
 
@@ -475,9 +485,11 @@ class Room extends Component {
     Leaderboard
 
     */
+   let length = (this.state.selectedTournament !== "") ? this.state.selectedTournament.records.length : 0
     let leaderboard = <>
       <List style={{maxHeight: "700px", overflow: "auto"}}>
-        {this.state.leaderboard.sort((a,b) => {return b.rating - a.rating}).map((entry) => {
+        {this.state.selectedTournament === "" ? (
+        this.state.leaderboard.sort((a,b) => {return b.rating - a.rating}).map((entry) => {
           return <ListItem>
             <ListItemText primary={entry.userName} secondary={Math.floor(entry.rating)} />
             <IconButton onClick={() => {
@@ -490,7 +502,15 @@ class Room extends Component {
             color={((this.state.activeUsers.filter((user)=>{return user.userId === entry.userId}).length === 0) ? "inherit" : "secondary")}
             ><SportsBasketballIcon /></IconButton>
           </ListItem>
-        })}
+        })) : 
+        
+        this.state.selectedTournament.records.sort((a,b) => {return b.record - a.record}).map((record) => {
+          return (<ListItem>
+            <ListItemText primary={record.userName} secondary={record.record + " - " + (length - record.record)} />
+            </ListItem>)
+        })
+        
+        }
       </List>
     </>
 
@@ -500,7 +520,11 @@ class Room extends Component {
     */
    let matches = <>
     <List>
-        {this.state.matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).map((match) => {
+        {this.state.matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).filter((match)=> {
+              
+              if(this.state.selectedTournament === "") return true 
+              return (match.tournamentName === this.state.selectedTournament.name)
+          }).filter((match, place) => {return (place < 100)}).map((match) => {
           return <ListItem>
             <ListItemText primary={match.player1.userName + " vs " + match.player2.userName} secondary={match.inProgress ? "In Progress" : (match.score[0] + " - " + match.score[1])} />
             <IconButton onClick={() => {
@@ -514,6 +538,23 @@ class Room extends Component {
           </ListItem>
         })}
       </List>
+   </>
+   let tournamentBlob = <>
+      <List style={{marginTop: "10px"}}>
+       
+        {this.state.tournaments.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).map((tournament) => {
+         
+          return <ListItem selected={tournament.name === this.state.selectedTournament.name}>
+            
+            <ListItemText primary={tournament.name} secondary={"Winner: " + tournament.winner.userName} />
+          
+            <IconButton onClick={() => {
+              this.setState({selectedTournament: tournament})
+            }}><EqualizerIcon /></IconButton>
+          </ListItem>
+        })}
+      </List>
+      {(this.state.selectedTournament==="" ? <></> : <Button fullWidth onClick={() => {this.setState({selectedTournament: ""})}}> Return to Free Play</Button>)}
    </>
   let bots = <>
   <List>
@@ -552,9 +593,16 @@ class Room extends Component {
     
               
 
-    <Typography variant="h6" style={{display: "flex", width: "80%", justifyContent: "center", alignItems: "center"}}>
+    <Typography variant="h6" style={{display: "flex", width: "70%", justifyContent: "center", alignItems: "center"}}>
     <AdbIcon fontSize="large" style={{marginRight: "10px"}} /> {"BattleBots: "+this.state.gameName}
     </Typography>
+    
+            <Button
+                onClick={() => {this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})}}
+                color="inherit"
+              >
+                {"Rules"}
+              </Button>
     <Button
                 onClick={() => {
                   this.setState({ createNewRoomModal: true });
@@ -578,11 +626,12 @@ class Room extends Component {
           />
   </Toolbar>
 </AppBar>
+        {this.state.loaded ?
         <Grid container direction="row" height={"calc(100% - 56px)"}>
         
-        <Box width="300px">{leaderboard}</Box>  
+        <Box width="280px">{leaderboard}</Box>  
           <Box width="calc(100% - 700px)">
-          <Box style={{maxHeight: "200px", overflow: "auto"}}>
+          <Box style={{maxHeight: "280px", overflow: "auto"}}>
             {bots}
             </Box>
             <Button
@@ -595,16 +644,18 @@ class Room extends Component {
         >
           {"Add New Bot"}
         </Button>
-            <Box height="450px" style={{overflow: "auto"}}>
+            <Box height="370px" style={{overflow: "auto"}}>
             {matches}
             </Box>
           
           </Box>
-          <Box width="400px">       
+          <Box width="400px">    
+          {this.state.tournamentInProgress ? <Alert severity="info" style={{marginTop: "10px"}}>{this.state.tournamentName + " in Progress"}</Alert>  : <></>}   
             <Chat messages={this.props.chat} roomName={this.state.roomName} />
-            <Button fullWidth style={{marginTop: "20px"}} onClick={() => {
-              this.setState({open: true, dialogText: [this.state.rules], dialogTitle: "Rules of " + this.state.gameName})
-            }}>View {this.state.gameName} Rules</Button>
+            
+            <Box height="300px" style={{overflow: "auto"}}>
+            {tournamentBlob}
+            </Box>
             {<Button
                 onClick={() => {
                   this.setState({createNewTournamentModal: true})
@@ -615,7 +666,7 @@ class Room extends Component {
               >
                 {"Run Tournament"}
               </Button>}
-              {this.state.tournamentInProgress ? <Alert severity="info">{this.state.tournamentName + " in Progress"}</Alert>  : <></>}
+              
            
           </Box>
           {popup}
@@ -623,7 +674,7 @@ class Room extends Component {
           {newTournamentPopup}
           {matchPopup}
           {codePopup}
-        </Grid>
+        </Grid> : <Box width="100%" style={{display: "flex", marginTop: "50px", justifyContent: "center", alignItems: "center"}}><CircularProgress /></Box>}
       </>
     );
   }

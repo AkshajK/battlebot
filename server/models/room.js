@@ -26,7 +26,8 @@ const RoomSchema = new mongoose.Schema({
   tournamentName: {
     type: String,
     default: "Free Play"
-  }
+  },
+ 
 });
 
 

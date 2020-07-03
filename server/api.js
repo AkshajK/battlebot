@@ -19,6 +19,7 @@ const path = require('path');
 const User = require("./models/user");
 const Room = require("./models/room");
 const Bot = require("./models/bot");
+const Tournament = require("./models/tournament");
 const Challenge = require("./models/challenge");
 const Game = require("./models/game");
 const Match = require("./models/match");
@@ -131,26 +132,29 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
     if(leaderboard.filter((user) => {return req.user._id === user.userId}).length === 0) {
      console.log("new leaderboard user")
      leaderboard.push(Object.assign(userObject(req.user), {rating: 1200, botId: "EXAMPLE"}))
+     room.leaderboard = leaderboard
     } 
     room.activeUsers = activeUsers 
-    room.leaderboard = leaderboard
+   
     room.save().then(() => {
     
        // need the res.send
        Match.find({roomName: room.name}, (err, matches) => {
-
+        
        
        Bot.find({"user.userId": req.user._id, gameName: room.gameName, deleted: false}, (err, bots) => {
-
+        Tournament.find({roomName: room.name}, (err, tournaments) => {
         Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
           Game.findOne({name: room.gameName}).then((game) => {
-          res.send({leaderboard: leaderboard, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
+          res.send({leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
           socket.getIo().emit("joinRoom", {roomName: req.body.roomName, user: userObject(req.user), leaderboard: leaderboard, activeUsers: activeUsers})
           socket.getIo().emit("message", {roomName: req.body.roomName, message: req.user.userName + " entered the room", type: "userJoinsOrLeaves"})
       
            
           }
+        
           )
+        })
         })
          
  
@@ -269,6 +273,8 @@ router.post("/testBot", auth.ensureLoggedIn, (req, res) => {
 // output: {}
 
 runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
+  let bothDone = 1
+  if(inTournament && (counter[roomName] === 1)) bothDone = 0
   return new Promise((resolve, reject) => {
     
 
@@ -336,23 +342,70 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                     leaderboard = leaderboard.filter((entry) => {return entry.userId !== player1.userId && entry.userId !== player2.userId})
                 leaderboard.push(player1)
                 leaderboard.push(player2)
-                room.leaderboard = leaderboard
+                Room.findOne({name: room.name}).then((room2)=> {
+                room2.leaderboard = leaderboard
                 if(inTournament) {
-                  counter -= 1
-                  console.log(counter)
-                  if(counter === 0) {
-                    room.tournamentInProgress = false
-                    room.tournamentName = "Free Play"
-                    socket.getIo().emit("tournamentDone", {roomName: room.name, name: tournamentName})
+                  counter[roomName] -= 1
+                  
+                  console.log(counter[roomName])
+                  if(!(Object.keys(records[roomName]).includes(player1.userId))) records[roomName][player1.userId] = 0.0
+                  if(!Object.keys(records[roomName]).includes(player2.userId)) records[roomName][player2.userId] = 0.0
+                  records[roomName][player1.userId] += p1score
+                  records[roomName][player2.userId] += 1 - p1score
+                 // console.log("hii" + records[roomName][player1.userId])
+                  names[roomName][player1.userId] = player1.userName
+                  names[roomName][player2.userId] = player2.userName
+                  if(counter[roomName] === 0) {
+                    
+                    let recordsArray = []
+                    let v=0 
+                    let keys = Object.keys(records[roomName])
+
+                    let winner = {}
+                    let maxScore = -1
+                    for(v=0; v<keys.length; v++) {
+                      let sc = records[roomName][keys[v]] 
+                      recordsArray.push({userId: keys[v], userName: names[roomName][keys[v]], record: sc})
+                      if(sc > maxScore) {
+                        maxScore = sc
+                        winner.userId = keys[v]
+                        winner.userName = names[roomName][keys[v]]
+                      }
+                    }
+                    let curTournament = new Tournament({
+                      name: tournamentName,
+                      roomName: room.name, 
+                      records: recordsArray,
+                      winner: winner
+                    })
+
+                    room2.tournamentInProgress = false
+                    room2.tournamentName = "Free Play"
+                    curTournament.save().then(() => {
+                      
+                     //console.log("SET FALSE DONE")
+
+                      socket.getIo().emit("tournamentDone", {roomName: room.name, name: tournamentName, tournament: curTournament})
+                      bothDone += 1
+                      if(bothDone === 2) {
+                        resolve()
+                      }
+                    })
+
+                    
                   }
                   }
-                room.save().then(() => {
+                room2.save().then(() => {
                   socket.getIo().emit("leaderboard", {roomName: room.name, leaderboard: leaderboard, bots: [{botId: bot1.botId, record: bot1.record}, {botId: bot2.botId, record: bot2.record}]})
-                  resolve()
+                  bothDone += 1
+                  if(bothDone === 2) {
+                    resolve()
+                  }
 
                 })
                   })
                 })
+              })
                 
 
                 
@@ -398,8 +451,9 @@ let runMatches = (list, current, roomName, tournamentName) => {
     runMatches(list, current+1, roomName, tournamentName)
   })
 }
-let counter = 0
-
+let counter = {}
+let records = {}
+let names = {}
 router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
   res.send({})
   if(req.body.password !== "admin") return
@@ -412,7 +466,9 @@ router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
       socket.getIo().emit("tournamentStart", {roomName: room.name, name: req.body.name})
       let i=0
       let j=0
-      counter = room.leaderboard.length*(room.leaderboard.length - 1) /2 * rounds
+      counter[room.name] = room.leaderboard.length*(room.leaderboard.length - 1) /2 * rounds
+      records[room.name] = {}
+      names[room.name] = {}
       let curlist = []
       for(i=0; i<room.leaderboard.length; i++) {
         for(j=i+1; j<room.leaderboard.length; j++) {
