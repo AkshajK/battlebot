@@ -21,6 +21,10 @@ const TournamentSchema = new mongoose.Schema({
   winner: {
     userId: String,
     userName: String
+  },
+  rounds: {
+    type: Number,
+    default: 1
   }
 });
 

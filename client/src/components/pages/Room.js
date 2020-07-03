@@ -57,6 +57,7 @@ class Room extends Component {
       roomName: roomName,
       gameName: "",
       newGameName: "",
+      isAdmin: false,
       gameOptions: ["Blotto"],
       activeUsers: [],
       leaderboard: [],
@@ -75,6 +76,7 @@ class Room extends Component {
       newRoomName: "",
       newTournamentName: "",
       newTournamentPassword: "",
+      newTournamentRounds: "1",
       botCode: "",
       botTitle: "",
       bots: [],
@@ -99,6 +101,7 @@ class Room extends Component {
 
     post("api/joinRoom", { roomName: roomName }).then((res) => {
       this.setState({
+        isAdmin: res.isAdmin,
         gameName: res.gameName,
         rules: res.rules,
         newGameName: res.gameName,
@@ -205,7 +208,7 @@ class Room extends Component {
       this.setState({ createNewRoomModal: false });
     };
     let closeNewTournamentPopup = () => {
-      this.setState({ createNewTournamentModal: false, newTournamentName: "", newTournamentPassword: ""});
+      this.setState({ createNewTournamentModal: false, newTournamentName: "", newTournamentPassword: "", newTournamentRounds: "1"});
     };
     let handleNewRoomSubmit = () => {
       console.log("Submitted")
@@ -218,7 +221,7 @@ class Room extends Component {
       console.log("Submitted")
       if((new Date()).getTime() - ((new Date(this.state.lastChallenge)).getTime()) >= 500) {
           this.setState({lastChallenge: new Date()})
-        post("api/runTournament", {roomName: this.state.roomName, name: this.state.newTournamentName, password: this.state.newTournamentPassword})
+        post("api/runTournament", {roomName: this.state.roomName, name: this.state.newTournamentName, password: this.state.newTournamentPassword, rounds: parseInt(this.state.newTournamentRounds)})
         
       }
       closeNewTournamentPopup()
@@ -312,12 +315,12 @@ class Room extends Component {
             />
             <TextField
               margin="dense"
-              label="Password"
-              type="password"
+              label="Number of Rounds"
+              type="text"
               fullWidth
-              value={this.state.newTournamentPassword}
+              value={this.state.newTournamentRounds}
               onChange={(event) => {
-                this.setState({ newTournamentPassword: event.target.value });
+                this.setState({ newTournamentRounds: event.target.value });
               }}
             />
            
@@ -329,7 +332,7 @@ class Room extends Component {
             </Button>
             <Button
               onClick={handleNewTournamentSubmit}
-              disabled={this.state.tournamentInProgress || (this.state.newTournamentName.length < 1)}
+              disabled={this.state.tournamentInProgress || (this.state.newTournamentName.length < 1) || (!/^\d+$/.test(this.state.newTournamentRounds))}
               color="primary"
             >
               Submit
@@ -485,7 +488,7 @@ class Room extends Component {
     Leaderboard
 
     */
-   let length = (this.state.selectedTournament !== "") ? this.state.selectedTournament.records.length : 0
+   let length = (this.state.selectedTournament !== "") ? (this.state.selectedTournament.records.length * (this.state.selectedTournament.rounds)) : 0
     let leaderboard = <>
       <List style={{maxHeight: "700px", overflow: "auto"}}>
         {this.state.selectedTournament === "" ? (
@@ -656,7 +659,7 @@ class Room extends Component {
             <Box height="300px" style={{overflow: "auto"}}>
             {tournamentBlob}
             </Box>
-            {<Button
+            {this.state.isAdmin ? <Button
                 onClick={() => {
                   this.setState({createNewTournamentModal: true})
                 }}
@@ -665,7 +668,7 @@ class Room extends Component {
                 fullWidth
               >
                 {"Run Tournament"}
-              </Button>}
+              </Button> : <></>}
               
            
           </Box>

@@ -146,7 +146,7 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
         Tournament.find({roomName: room.name}, (err, tournaments) => {
         Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
           Game.findOne({name: room.gameName}).then((game) => {
-          res.send({leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
+          res.send({isAdmin: req.user.admin, leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
           socket.getIo().emit("joinRoom", {roomName: req.body.roomName, user: userObject(req.user), leaderboard: leaderboard, activeUsers: activeUsers})
           socket.getIo().emit("message", {roomName: req.body.roomName, message: req.user.userName + " entered the room", type: "userJoinsOrLeaves"})
       
@@ -376,7 +376,8 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                       name: tournamentName,
                       roomName: room.name, 
                       records: recordsArray,
-                      winner: winner
+                      winner: winner,
+                      rounds: rounds[room.name]
                     })
 
                     room2.tournamentInProgress = false
@@ -454,10 +455,11 @@ let runMatches = (list, current, roomName, tournamentName) => {
 let counter = {}
 let records = {}
 let names = {}
+let rounds = {}
 router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
   res.send({})
-  if(req.body.password !== "admin") return
-  let rounds = 1
+  if(!req.user.admin) return
+  let rounds = req.body.rounds
 
   Room.findOne({name: req.body.roomName}).then((room) => {
     room.tournamentInProgress = true 
@@ -469,6 +471,7 @@ router.post("/runTournament", auth.ensureLoggedIn, (req, res) => {
       counter[room.name] = room.leaderboard.length*(room.leaderboard.length - 1) /2 * rounds
       records[room.name] = {}
       names[room.name] = {}
+      rounds[room.name] = req.body.rounds
       let curlist = []
       for(i=0; i<room.leaderboard.length; i++) {
         for(j=i+1; j<room.leaderboard.length; j++) {
