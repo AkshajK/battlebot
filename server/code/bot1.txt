@@ -7,6 +7,6 @@
 def getSubmission(my_past_submissions, their_past_submissions, my_score):
     # Submit one array every odd round, and another every even round
     if len(my_past_submissions) % 2 == 0:
-        return [10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+        return [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
     else:
-        return [0, 0, 0, 0, 16, 16, 16, 16, 16, 20, 10]
+        return [16, 16, 16, 16, 16, 20, 0, 0, 0, 0]

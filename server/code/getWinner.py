@@ -11,11 +11,31 @@ def getWinner(result1, result2):
 
 def getWinnerValid(result1, result2):
     counter = 0
+    streak_user = "win"
+    streak_count = 0
     for i in range(10):
         if(result1[i] > result2[i]):
             counter += 1
+            if streak_user == "win":
+                streak_count += 1
+                if(streak_count == 3):
+                    return "win"
+            else:
+                streak_user = "win"
+                streak_count = 1
+                
         elif (result1[i] < result2[i]):
             counter -= 1
+            
+            if streak_user == "lose":
+                streak_count += 1
+                if(streak_count == 3):
+                    return "lose"
+            else:
+                streak_user = "lose"
+                streak_count = 1
+        else:
+            streak_count = 0
     if counter > 0:
         return "win"
     elif counter < 0:

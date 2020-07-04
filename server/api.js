@@ -151,7 +151,7 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
        // need the res.send
        Bot.find({"user.userId": req.user._id, gameName: room.gameName, deleted: false}, (err, bots) => {
         Tournament.find({roomName: room.name}, (err, tournaments) => {
-        Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
+        Bot.findOne({gameName: room.gameName, botId: "EXAMPLE"}).then((exampleBot) => {
           Game.findOne({name: room.gameName}).then((game) => {
           res.send({announcement: room.announcement || "", isAdmin: req.user.admin, leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: [], exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
           socket.getIo().emit("joinRoom", {roomName: req.body.roomName, user: userObject(req.user), leaderboard: leaderboard, activeUsers: activeUsers})

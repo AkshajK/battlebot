@@ -101,7 +101,7 @@ class NewGame extends Component {
         <Grid container  direction="row" >
         <AceEditor
                     mode="python"
-                    readOnly
+                 
                     theme="github"
                     value={this.state.code}
           onChange={(value) => {
@@ -110,7 +110,7 @@ class NewGame extends Component {
                 />
         <AceEditor
                     mode="python"
-                    readOnly
+                  
                     theme="github"
                     value={this.state.codeExample}
           onChange={(value) => {

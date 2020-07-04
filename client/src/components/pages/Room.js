@@ -58,7 +58,7 @@ class Room extends Component {
       gameName: "",
       newGameName: "",
       isAdmin: false,
-      gameOptions: ["Blotto"],
+      gameOptions: ["Blotto", "Blotto Sudden Death"],
       activeUsers: [],
       leaderboard: [],
       lastMessage: new Date(),
@@ -111,7 +111,7 @@ class Room extends Component {
         newGameName: res.gameName,
         activeUsers: res.activeUsers,
         leaderboard: res.leaderboard,
-        announcement: res.announcement,
+        announcementText: res.announcement,
         bots: res.bots,
         matches: res.matches,
         exampleBot: res.exampleBot,
@@ -244,6 +244,7 @@ class Room extends Component {
       post("api/createRoom", {roomName: this.state.newRoomName, gameName: this.state.newGameName}).then((res) => {
         console.log("createdRoom "+window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName)
         window.location.href = window.location.href.substring(0, window.location.href.lastIndexOf("/")+1) + this.state.newRoomName
+        
       });
     };
     let handleNewTournamentSubmit = () => {
