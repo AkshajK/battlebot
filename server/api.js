@@ -321,9 +321,12 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
     
     
     
-    
-  Bot.findOne({botId: player1.botId}).then((bot1) => {
-    Bot.findOne({botId: player2.botId}).then((bot2) => {
+    let query1 = {botId: player1.botId}
+    if (player1.botId === "EXAMPLE") query1={botId: player1.botId, gameName: room.gameName}
+    let query2 = {botId: player2.botId}
+    if (player2.botId === "EXAMPLE") query2={botId: player2.botId, gameName: room.gameName}
+  Bot.findOne(query1).then((bot1) => {
+    Bot.findOne(query2).then((bot2) => {
 
       Game.findOne({name: room.gameName}).then((game) => {
         try {
@@ -369,9 +372,8 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
                 player2.rating += newRating2
                 
                 
-
-                Bot.findOne({botId: bot1.botId}).then((bot1c) => {
-                  Bot.findOne({botId: bot2.botId}).then((bot2c) => {
+                Bot.findOne(query1).then((bot1c) => {
+                  Bot.findOne(query2).then((bot2c) => {
                     let record1 = bot1c.record 
                     record1[0] += p1score
                     record1[1] += 1-p1score
