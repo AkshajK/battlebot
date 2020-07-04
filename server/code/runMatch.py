@@ -1,32 +1,70 @@
 import signal 
 import copy
+import sys
+""" 
 from RestrictedPython import compile_restricted
-from RestrictedPython import safe_globals
+from RestrictedPython.PrintCollector import PrintCollector
+from RestrictedPython.Guards import safe_builtins
+from RestrictedPython.Limits import limited_builtins
+from RestrictedPython.Utilities import utility_builtins
+from RestrictedPython.Guards import full_write_guard
+from RestrictedPython.Eval import default_guarded_getiter
+from RestrictedPython.Eval import default_guarded_getitem
+from RestrictedPython.Guards import guarded_iter_unpack_sequence
+from RestrictedPython.Guards import safer_getattr
+
+restricted_globals = dict(
+        __builtins__ = {**safe_builtins, **limited_builtins, **utility_builtins},
+   
+        )
+
+restricted_globals['_print_'] = PrintCollector
+restricted_globals['_write_'] = full_write_guard 
+restricted_globals['_getattr_'] = safer_getattr
+restricted_globals['_getitem_'] = default_guarded_getitem
+restricted_globals['__metaclass__'] = type 
+restricted_globals['_getiter_'] = default_guarded_getiter
+restricted_globals['_iter_unpack_sequence_'] = guarded_iter_unpack_sequence """
+
+bad_text = ["__class__", "__bases__", "eval(", "exec(", "import os", "import sys", "__import__", "from os", "from sys", "open(", "exit(", "quit(", "file(", "execfile(", "__builtins__", "reload(", "dir("]
 bot1Works = True 
 bot2Works = True
-bot1code = -1
-bot2code = -1
+
+
 try:
-    f = open("bot1.py", "r")
-    bot1 = f.read()
-    loc={}
-    byte_code = compile_restricted(bot1, '<inline>', 'exec')
-    exec(byte_code, safe_globals, loc)
     
-    bot1code = loc['getSubmission']
+    f = open("server/code/bot1.txt", "r")
+    bot1text = f.read()
+    if any(problem_word in bot1text for problem_word in bad_text):
+        raise Exception("This code is not allowed. Contact akshajk@mit.edu for details")
+    from bot1 import getSubmission as bot1code
+    #bot1 = f.read()
+    #loc={}
+    #byte_code = compile_restricted(bot1, '<inline>', 'exec')
+    # print(utility_builtins)
+    #exec(byte_code,restricted_globals, loc)
+    #print(loc)
+    # bot1code = loc['getSubmission']
 except Exception as e:
-    print("[!BOT1] Error Message: ", e)
+    if(len(sys.argv) > 1):
+        print("[!BOT1] Error Message: ", e)
     bot1Works = False
 try: 
-    f = open("bot2.py", "r")
-    bot2 = f.read()
-    loc={}
-    byte_code = compile_restricted(bot2, '<inline>', 'exec')
-    exec(byte_code, safe_globals, loc)
     
-    bot2code = loc['getSubmission']
+    f = open("server/code/bot2.txt", "r")
+    bot2text = f.read()
+    if any(problem_word in bot2text for problem_word in bad_text):
+        raise Exception("This code is not allowed. Contact akshajk@mit.edu for details")
+    from bot2 import getSubmission as bot2code
+    #bot2 = f.read()
+    #loc={}
+    #byte_code = compile_restricted(bot2, '<inline>', 'exec')
+    #exec(byte_code, restricted_globals, loc)
+    #print(loc)
+    #bot2code = loc['getSubmission']
 except Exception as e:
-    print("[!BOT2] Error Message: ", e)
+    if(len(sys.argv) > 1):
+        print("[!BOT2] Error Message: ", e)
     bot2Works = False
 from getWinner import getWinner
 NUM_ROUNDS = 100
@@ -46,8 +84,9 @@ def runMatch():
               signal.setitimer(signal.ITIMER_REAL, time_limit)
               val1 = bot1code(copy.deepcopy(results1), copy.deepcopy(results2), bot1score+0)
               signal.alarm(0)
-      except:
-          pass
+      except Exception as e:
+          if(len(sys.argv) > 1):
+              val1 = str(e)
           
       val2 = -1
       try:
@@ -56,8 +95,9 @@ def runMatch():
               signal.setitimer(signal.ITIMER_REAL, time_limit)
               val2 = bot2code(copy.deepcopy(results2), copy.deepcopy(results1), bot2score+0)
               signal.alarm(0)
-      except:
-          pass
+      except Exception as e:
+          if(len(sys.argv) > 1):
+              val2 = str(e)
 
       result = getWinner(val1, val2)
       
