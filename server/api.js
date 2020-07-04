@@ -58,7 +58,7 @@ let userObject = (user) => {
 
 
 router.get("/tournamentMatches", auth.ensureLoggedIn, (req, res) => {
-  Match.find({roomName: req.query.roomName, tournamentName: req.query.tournamentName}, null, {sort: {'date': -1}, limit: 50}, (err, matches) => {
+  Match.find({roomName: req.query.roomName, tournamentName: req.query.tournamentName, $or: [{"player1.userId": req.user._id.toString()}, {"player2.userId": req.user._id.toString()}]}, (err, matches) => {
       res.send(matches)
   })
 })
@@ -149,14 +149,11 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
     room.save().then(() => {
     
        // need the res.send
-       Match.find({roomName: room.name, tournamentName: "Free Play"}, null, {sort: {'date': -1}, limit: 50}, (err, matches) => {
-        
-       matches = matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).filter((match, place) => {return (place < 100)})
        Bot.find({"user.userId": req.user._id, gameName: room.gameName, deleted: false}, (err, bots) => {
         Tournament.find({roomName: room.name}, (err, tournaments) => {
         Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
           Game.findOne({name: room.gameName}).then((game) => {
-          res.send({announcement: room.announcement || "", isAdmin: req.user.admin, leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
+          res.send({announcement: room.announcement || "", isAdmin: req.user.admin, leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: [], exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
           socket.getIo().emit("joinRoom", {roomName: req.body.roomName, user: userObject(req.user), leaderboard: leaderboard, activeUsers: activeUsers})
           socket.getIo().emit("message", {roomName: req.body.roomName, message: req.user.userName + " entered the room", type: "userJoinsOrLeaves"})
       
@@ -172,7 +169,7 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
        })
        })
     })
-  })
+ 
 });
 
 
