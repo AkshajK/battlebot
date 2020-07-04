@@ -58,7 +58,7 @@ let userObject = (user) => {
 
 
 router.get("/tournamentMatches", auth.ensureLoggedIn, (req, res) => {
-  Match.find({roomName: req.query.roomName, tournamentName: req.query.tournamentName}, (err, matches) => {
+  Match.find({roomName: req.query.roomName, tournamentName: req.query.tournamentName}, null, {sort: {'date': -1}, limit: 50}, (err, matches) => {
       res.send(matches)
   })
 })
@@ -149,14 +149,14 @@ router.post("/joinRoom", auth.ensureLoggedIn, (req, res) => {
     room.save().then(() => {
     
        // need the res.send
-       Match.find({roomName: room.name, tournamentName: "Free Play"}, (err, matches) => {
+       Match.find({roomName: room.name, tournamentName: "Free Play"}, null, {sort: {'date': -1}, limit: 50}, (err, matches) => {
         
        matches = matches.sort((a,b) => {return new Date(b.timestamp) - new Date(a.timestamp)}).filter((match, place) => {return (place < 100)})
        Bot.find({"user.userId": req.user._id, gameName: room.gameName, deleted: false}, (err, bots) => {
         Tournament.find({roomName: room.name}, (err, tournaments) => {
         Bot.findOne({botId: "EXAMPLE"}).then((exampleBot) => {
           Game.findOne({name: room.gameName}).then((game) => {
-          res.send({isAdmin: req.user.admin, leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
+          res.send({announcement: room.announcement || "", isAdmin: req.user.admin, leaderboard: leaderboard, tournaments: tournaments, activeUsers: activeUsers, gameName: room.gameName, bots: bots, matches: matches, exampleBot: exampleBot, rules: game.rules, tournamentInProgress: room.tournamentInProgress, tournamentName: room.tournamentName})
           socket.getIo().emit("joinRoom", {roomName: req.body.roomName, user: userObject(req.user), leaderboard: leaderboard, activeUsers: activeUsers})
           socket.getIo().emit("message", {roomName: req.body.roomName, message: req.user.userName + " entered the room", type: "userJoinsOrLeaves"})
       
@@ -281,12 +281,27 @@ router.post("/deleteBot", auth.ensureLoggedIn, (req, res) => {
   
 });
 
+router.post("/sendAnnouncement", auth.ensureLoggedIn, (req, res) => {
+  Room.findOne({name: req.body.roomName}).then((room) => {
+    room.announcement = req.body.announcement
+    room.save().then(() => {
+      socket.getIo().emit("announcement", {roomName: req.body.roomName, announcement: req.body.announcement})
+    })
+  })
+  
+   
+  
+  
+});
+
 router.post("/testBot", auth.ensureLoggedIn, (req, res) => {
   Game.findOne({name: req.body.gameName}).then((game) => {
+                fs.writeFileSync(path.join(__dirname, "code", "bot1.txt"), req.body.code)
                 fs.writeFileSync(path.join(__dirname, "code", "bot1.py"), req.body.code)
+                fs.writeFileSync(path.join(__dirname, "code", "bot2.txt"), req.body.exampleCode)
                 fs.writeFileSync(path.join(__dirname, "code", "bot2.py"), req.body.exampleCode)
                 fs.writeFileSync(path.join(__dirname, "code", "getWinner.py"), game.getWinner)
-                const proc = execSync("python3 " + path.join(__dirname, "code", "runMatch.py"));
+                const proc = execSync("python3 " + path.join(__dirname, "code", "runMatch.py") + " 0");
                 const results = proc.toString();
                 let transcript = results.split("[!BOT1]").join(req.user.userName).split("[!BOT2]").join("ExampleBot").split("\n")
                 res.send({transcript: transcript})
@@ -324,7 +339,9 @@ runMatch = (player1id, player2id, roomName, inTournament, tournamentName) => {
           })
           match.save().then(() => {
             socket.getIo().emit("newMatch", {roomName: room.name, match: match})
+            fs.writeFileSync(path.join(__dirname, "code", "bot1.txt"), bot1.code)
             fs.writeFileSync(path.join(__dirname, "code", "bot1.py"), bot1.code)
+            fs.writeFileSync(path.join(__dirname, "code", "bot2.txt"), bot2.code)
             fs.writeFileSync(path.join(__dirname, "code", "bot2.py"), bot2.code)
             fs.writeFileSync(path.join(__dirname, "code", "getWinner.py"), game.getWinner)
             const proc = execSync("python3 " + path.join(__dirname, "code", "runMatch.py"));

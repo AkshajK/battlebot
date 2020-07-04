@@ -67,6 +67,7 @@ class Room extends Component {
       addNewBotModal: false,
       createNewRoomModal: false,
       createNewTournamentModal: false,
+      createNewAnnouncementModal: false,
       open: false,
       botId: "",
       dialogText: [],
@@ -74,6 +75,8 @@ class Room extends Component {
       dialogCodeOpen: false,
       dialogCodeText: "",
       newRoomName: "",
+      newAnnouncement: "",
+      announcementText: "",
       newTournamentName: "",
       newTournamentPassword: "",
       newTournamentRounds: "1",
@@ -108,6 +111,7 @@ class Room extends Component {
         newGameName: res.gameName,
         activeUsers: res.activeUsers,
         leaderboard: res.leaderboard,
+        announcement: res.announcement,
         bots: res.bots,
         matches: res.matches,
         exampleBot: res.exampleBot,
@@ -154,7 +158,15 @@ class Room extends Component {
 
       }
     });
+    socket.on("announcement", (data) => {
+      if (data.roomName === this.state.roomName) {
+        this.setState({
+          announcementText: data.announcement
+        })
 
+
+      }
+    });
     socket.on("tournamentStart", (data) => {
       if (data.roomName === this.state.roomName) {
         this.setState({
@@ -224,6 +236,9 @@ class Room extends Component {
     let closeNewTournamentPopup = () => {
       this.setState({ createNewTournamentModal: false, newTournamentName: "", newTournamentPassword: "", newTournamentRounds: "1"});
     };
+    let closeNewAnnouncementPopup = () => {
+      this.setState({ createNewAnnouncementModal: false, newAnnouncement: ""});
+    };
     let handleNewRoomSubmit = () => {
       console.log("Submitted")
       post("api/createRoom", {roomName: this.state.newRoomName, gameName: this.state.newGameName}).then((res) => {
@@ -239,6 +254,12 @@ class Room extends Component {
         
       }
       closeNewTournamentPopup()
+    };
+    let handleNewAnnouncementSubmit = () => {
+      console.log("Submitted")
+      post("api/sendAnnouncement", {roomName: this.state.roomName, announcement: this.state.newAnnouncement})
+       
+      closeNewAnnouncementPopup()
     };
     let matchPopup = (<><Dialog open={this.state.open} onClose={() => {this.setState({open: false, dialogText: []})}}>
       <DialogTitle>{this.state.dialogTitle}</DialogTitle>
@@ -347,6 +368,37 @@ class Room extends Component {
             <Button
               onClick={handleNewTournamentSubmit}
               disabled={this.state.tournamentInProgress || (this.state.newTournamentName.length < 1) || (!/^\d+$/.test(this.state.newTournamentRounds))}
+              color="primary"
+            >
+              Submit
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </>
+    );
+    let newAnnouncementPopup = (
+      <>
+        <Dialog open={this.state.createNewAnnouncementModal} onClose={closeNewAnnouncementPopup}>
+          <DialogTitle>New Announcement</DialogTitle>
+          <DialogContent>
+           
+            <TextField
+              margin="dense"
+              label="Announcement"
+              type="text"
+              fullWidth
+              value={this.state.newAnnouncement}
+              onChange={(event) => {
+                this.setState({ newAnnouncement: event.target.value });
+              }}
+            />
+           
+           
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={handleNewAnnouncementSubmit}
+             
               color="primary"
             >
               Submit
@@ -464,7 +516,7 @@ class Room extends Component {
                    
                 /> 
           <Divider orientation="vertical" flexItem />
-          <List style={{height: "500px", overflow: "auto"}}>
+          <List style={{height: "500px", width: "500px", overflow: "auto"}}>
          { this.state.testMatch.transcript.map((text) => {
             return <ListItem><ListItemText primary={text} /></ListItem>
           })}
@@ -672,6 +724,8 @@ class Room extends Component {
           
           </Box>
           <Box width="400px">    
+          {this.state.announcementText !== "" ? <Alert severity="info" style={{marginTop: "10px"}}>{this.state.announcementText}</Alert>  : <></>}   
+
           {this.state.tournamentInProgress ? <Alert severity="info" style={{marginTop: "10px"}}>{this.state.tournamentName + " in Progress"}</Alert>  : <></>}   
             <Chat messages={this.props.chat} roomName={this.state.roomName} />
             
@@ -692,12 +746,23 @@ class Room extends Component {
               >
                 {"Run Tournament"}
               </Button> : <></>}
+              {this.state.isAdmin ? <Button
+                onClick={() => {
+                  this.setState({createNewAnnouncementModal: true})
+                }}
+                color="inherit"
+                disabled={this.state.tournamentInProgress}
+                fullWidth
+              >
+                {"Send Announcement"}
+              </Button> : <></>}
               
            
           </Box>
           {popup}
           {newRoomPopup}
           {newTournamentPopup}
+          {newAnnouncementPopup}
           {matchPopup}
           {codePopup}
         </Grid> : <Box width="100%" style={{display: "flex", marginTop: "50px", justifyContent: "center", alignItems: "center"}}><CircularProgress /></Box>}

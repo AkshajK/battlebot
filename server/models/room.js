@@ -27,6 +27,10 @@ const RoomSchema = new mongoose.Schema({
     type: String,
     default: "Free Play"
   },
+  announcement: {
+    type: String,
+    default: ""
+  }
  
 });
 
