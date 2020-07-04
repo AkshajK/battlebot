@@ -67,6 +67,7 @@ except Exception as e:
         print("[!BOT2] Error Message: ", e)
     bot2Works = False
 from getWinner import getWinner
+from getWinner import valid
 NUM_ROUNDS = 100
 time_limit = 0.1
 def runMatch():
@@ -83,7 +84,13 @@ def runMatch():
               signal.signal(signal.SIGALRM, handler)
               signal.setitimer(signal.ITIMER_REAL, time_limit)
               val1 = bot1code(copy.deepcopy(results1), copy.deepcopy(results2), bot1score+0)
+
               signal.alarm(0)
+              if not valid(val1):
+                  if(len(sys.argv) > 1):
+                      val1 = "Invalid Submission"
+                  else:
+                      val1 = -1
       except Exception as e:
           if(len(sys.argv) > 1):
               val1 = str(e)
@@ -94,7 +101,13 @@ def runMatch():
               signal.signal(signal.SIGALRM, handler)
               signal.setitimer(signal.ITIMER_REAL, time_limit)
               val2 = bot2code(copy.deepcopy(results2), copy.deepcopy(results1), bot2score+0)
+             
               signal.alarm(0)
+              if not valid(val2):
+                  if(len(sys.argv) > 1):
+                      val2 = "Invalid Submission"
+                  else:
+                      val2 = -1
       except Exception as e:
           if(len(sys.argv) > 1):
               val2 = str(e)
@@ -121,6 +134,7 @@ def runMatch():
       print(textResult + ". Score: [!BOT1] (" + str(bot1score) + ") - [!BOT2] (" + str(bot2score) + ")")
       results1.append(val1)
       results2.append(val2)
+      
   print("Final Result ([!BOT1] vs [!BOT2])")
   print(str(bot1score) + " - " + str(bot2score))
 if __name__ == '__main__':
